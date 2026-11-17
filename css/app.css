@@ -230,6 +230,8 @@ h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
 @media print {
   /* Marge de page à 0 : le navigateur n'a plus la place d'ajouter l'adresse du site et la date. */
   @page { size: A4 landscape; margin: 0; }
+  /* Indispensable : un « overflow » ou une hauteur fixe sur la page bloque l'impression sur une seule feuille. */
+  html, body { overflow: visible !important; height: auto !important; }
   body { background: #fff; font-size: 11px; padding: 10mm 12mm; }
   .sidenav, .topbar, .bottomnav, .no-print, #toast { display: none !important; }
   .layout { display: block; }
