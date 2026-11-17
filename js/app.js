@@ -12,6 +12,7 @@ import { renderHistorique } from './views/historique.js';
 import { renderAide } from './views/aide.js';
 import { renderNettoyage } from './views/nettoyage.js';
 import { renderReception } from './views/reception.js';
+import { renderDocuments } from './views/documents.js';
 
 const app = document.getElementById('app');
 
@@ -36,6 +37,7 @@ const ROUTES = {
   temperatures: renderTemperatures,
   nettoyage: renderNettoyage,
   reception: renderReception,
+  documents: renderDocuments,
   historique: renderHistorique,
   aide: renderAide,
   admin: renderAdmin,

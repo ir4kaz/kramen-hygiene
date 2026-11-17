@@ -1,12 +1,12 @@
 // Service worker : garde l'appli en cache pour qu'elle s'ouvre sans réseau.
 // Changer VERSION à chaque mise à jour pour forcer le rafraîchissement.
-const VERSION = 'v19';
+const VERSION = 'v20';
 const CACHE = `kramen-hygiene-${VERSION}`;
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './js/app.js', './js/firebase.js', './js/util.js',
   './js/views/login.js', './js/views/home.js', './js/views/temperatures.js',
-  './js/views/admin.js', './js/views/soon.js', './js/views/historique.js', './js/views/aide.js', './js/views/nettoyage.js', './js/views/reception.js',
+  './js/views/admin.js', './js/views/soon.js', './js/views/historique.js', './js/views/aide.js', './js/views/nettoyage.js', './js/views/reception.js', './js/views/documents.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
 ];
 

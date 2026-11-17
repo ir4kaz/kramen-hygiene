@@ -11,7 +11,7 @@ const TILES = [
   { id: 'temperatures', label: 'Températures', icon: 'thermo' },
   { id: 'nettoyage', label: 'Nettoyage', icon: 'clean' },
   { id: 'reception', label: 'Réception', icon: 'truck' },
-  { id: 'documents', label: 'Documents', icon: 'folder', soon: true },
+  { id: 'documents', label: 'Documents', icon: 'folder' },
   { id: 'historique', label: 'Historique', icon: 'history', wide: true },
 ];
 
@@ -68,6 +68,8 @@ export function renderHome(view, { session }) {
       } else if (t.id === 'reception') {
         const nc = recs.filter((r) => !r.conforme).length;
         sub = recs.length ? `${recs.length} livraison${recs.length > 1 ? 's' : ''} aujourd’hui${nc ? ` · ${nc} non conforme${nc > 1 ? 's' : ''}` : ''}` : 'Aucune livraison aujourd’hui';
+      } else if (t.id === 'documents') {
+        sub = 'PMS, fiches, fournisseurs…';
       } else if (t.id === 'historique') {
         sub = 'Relevés, nettoyage, livraisons et PDF';
       }

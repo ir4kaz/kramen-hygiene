@@ -197,3 +197,20 @@ export function bytesToUrl(bytes) {
   const u8 = bytes && typeof bytes.toUint8Array === 'function' ? bytes.toUint8Array() : bytes;
   return u8 ? URL.createObjectURL(new Blob([u8], { type: 'image/jpeg' })) : '';
 }
+
+// ---------- Documents ----------
+export const DOC_CATS = {
+  pms: { label: 'Plan de maîtrise sanitaire (PMS)', prive: false },
+  fiches: { label: 'Fiches techniques des produits', prive: false },
+  notices: { label: 'Notices des appareils', prive: false },
+  agrement: { label: 'Agrément et autorisations', prive: false },
+  formation: { label: 'Formations hygiène', prive: false },
+  nuisibles: { label: 'Lutte contre les nuisibles', prive: false },
+  controles: { label: 'Rapports de contrôle', prive: false },
+  admin: { label: 'Papiers administratifs', prive: true },
+  contrats: { label: 'Contrats de travail et « qui fait quoi »', prive: true },
+  autre: { label: 'Autres documents', prive: false },
+};
+export const DOC_ORDER = ['pms', 'fiches', 'notices', 'agrement', 'formation', 'nuisibles', 'controles', 'admin', 'contrats', 'autre'];
+
+export const fmtSize = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1).replace('.', ',')} Mo` : `${Math.max(1, Math.round(n / 1024))} Ko`);

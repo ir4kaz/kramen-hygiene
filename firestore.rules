@@ -84,6 +84,24 @@ service cloud.firestore {
       allow delete: if active();
     }
 
+    // Documents (classeur). « prive » = visible seulement par la responsable.
+    match /documents/{id} {
+      allow read: if active() && (resource.data.prive == false || isAdmin());
+      allow create: if active()
+        && request.resource.data.ajoutePar == request.auth.uid
+        && (request.resource.data.prive == false || isAdmin());
+      allow update, delete: if isAdmin();
+
+      // Morceaux des fichiers (moins de 1 Mo chacun).
+      match /morceaux/{m} {
+        allow read: if active()
+          && (get(/databases/$(database)/documents/documents/$(id)).data.prive == false || isAdmin());
+        allow create: if active();
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+    }
+
     match /releves/{id} {
       allow read: if active();
       allow create, update: if active()
