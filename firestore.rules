@@ -84,6 +84,13 @@ service cloud.firestore {
       allow delete: if active();
     }
 
+    // Catégories de documents ajoutées par l'équipe.
+    match /doc_categories/{id} {
+      allow read: if active();
+      allow create: if active();
+      allow update, delete: if isAdmin();
+    }
+
     // Documents (classeur). « prive » = visible seulement par la responsable.
     match /documents/{id} {
       allow read: if active() && (resource.data.prive == false || isAdmin());

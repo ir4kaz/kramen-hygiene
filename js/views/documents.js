@@ -5,12 +5,25 @@ import {
   collection, query, where, onSnapshot, doc, getDoc, getDocs, writeBatch, serverTimestamp, Bytes, updateDoc,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
-  esc, icon, toast, shortDate, today, dateFromKey, compressImage, DOC_CATS, DOC_ORDER, fmtSize, hhmm, bytesToUrl,
+  esc, icon, toast, shortDate, today, dateFromKey, compressImage, DOC_CATS, DOC_ORDER, fmtSize, hhmm, bytesToUrl, slug,
 } from '../util.js';
 
 const CHUNK = 900 * 1024;
 const MAX_TOTAL = 8 * 1024 * 1024;
 const MAX_FILES = 10;
+
+// Catégories ajoutées par l'équipe (collection « doc_categories »), en plus des catégories de base.
+let CUSTOM = {};
+const setCustom = (s) => { CUSTOM = Object.fromEntries(s.docs.map((d) => [d.id, d.data()])); };
+const known = (id) => !!(DOC_CATS[id] || CUSTOM[id]);
+const cat = (id) => DOC_CATS[id] || CUSTOM[id] || DOC_CATS.autre;
+const catOrder = () => [
+  ...DOC_ORDER.filter((c) => c !== 'autre'),
+  ...Object.keys(CUSTOM).sort((a, b) => (CUSTOM[a].label || '').localeCompare(CUSTOM[b].label || '')),
+  'autre',
+];
+const catOptions = (sel, withNew) => catOrder().map((c) => `<option value="${esc(c)}" ${sel === c ? 'selected' : ''}>${esc(cat(c).label)}</option>`).join('')
+  + (withNew ? `<option value="__new" ${sel === '__new' ? 'selected' : ''}>+ Nouvelle catégorie…</option>` : '');
 
 export function renderDocuments(view, { sub, session }) {
   if (sub === 'ajouter') return renderAdd(view, session);
@@ -31,13 +44,13 @@ function renderList(view, session) {
 
   function draw() {
     const f = filtre.trim().toLowerCase();
-    const match = (d) => !f || d.titre.toLowerCase().includes(f) || (DOC_CATS[d.categorie]?.label || '').toLowerCase().includes(f);
-    const sections = DOC_ORDER.map((c) => {
-      const list = docs.filter((d) => (d.categorie || 'autre') === c && match(d))
+    const match = (d) => !f || d.titre.toLowerCase().includes(f) || (cat(d.categorie).label || '').toLowerCase().includes(f);
+    const sections = catOrder().map((c) => {
+      const list = docs.filter((d) => (known(d.categorie) ? d.categorie : 'autre') === c && match(d))
         .sort((a, b) => (b.ajouteLe || 0) - (a.ajouteLe || 0));
       if (!list.length) return '';
       return `<section class="stack" style="gap:8px">
-        <h2 style="font-size:15px">${esc(DOC_CATS[c].label)} <span class="muted small">(${list.length})</span></h2>
+        <h2 style="font-size:15px">${esc(cat(c).label)} <span class="muted small">(${list.length})</span></h2>
         <div class="card list">${list.map((d) => `<a class="docrow" href="#/documents/${esc(d.id)}">
           <span class="docic">${d.fichiers?.some((x) => x.type === 'pdf') ? '<strong>PDF</strong>' : icon('folder', 22)}</span>
           <span class="rinfo"><strong>${esc(d.titre)}</strong>
@@ -117,19 +130,20 @@ function renderList(view, session) {
   const q = isAdmin ? collection(db, 'documents') : query(collection(db, 'documents'), where('prive', '==', false));
   const un1 = onSnapshot(q, (s) => { docs = s.docs.map((d) => ({ id: d.id, ...d.data() })); draw(); });
   const un2 = onSnapshot(collection(db, 'fournisseurs'), (s) => { fournisseurs = s.docs.map((d) => ({ id: d.id, ...d.data() })); draw(); });
+  const un4 = onSnapshot(collection(db, 'doc_categories'), (s) => { setCustom(s); draw(); });
   // Bons de livraison des 6 derniers mois.
   const since = new Date(); since.setMonth(since.getMonth() - 6);
   const un3 = onSnapshot(query(collection(db, 'receptions'), where('date', '>=', today(since))), (s) => {
     receptions = s.docs.map((d) => ({ id: d.id, ...d.data() })); draw();
   });
   draw();
-  return () => { un1(); un2(); un3(); thumbs.forEach((u) => URL.revokeObjectURL(u)); };
+  return () => { un1(); un2(); un3(); un4(); thumbs.forEach((u) => URL.revokeObjectURL(u)); };
 }
 
 // ---------- Ajout ----------
 function renderAdd(view, session) {
   const isAdmin = session.user.role === 'admin';
-  const st = { titre: '', categorie: 'pms', prive: false, files: [] }; // files: { type, nom, bytes, url? }
+  const st = { titre: '', categorie: 'pms', nouvelle: '', prive: false, files: [] }; // files: { type, nom, bytes, url? }
   let busy = false;
 
   function read() {
@@ -137,6 +151,8 @@ function renderAdd(view, session) {
     if (!f) return;
     st.titre = f.querySelector('#dt').value;
     st.categorie = f.querySelector('#dc').value;
+    const n = f.querySelector('#dnew');
+    if (n) st.nouvelle = n.value;
     const p = f.querySelector('#dp');
     if (p) st.prive = p.checked;
   }
@@ -148,7 +164,8 @@ function renderAdd(view, session) {
       <form id="df" class="stack" style="gap:16px;max-width:760px" novalidate>
         <section class="card pad stack" style="gap:12px">
           <div class="field"><label for="dt">Titre</label><input id="dt" value="${esc(st.titre)}" placeholder="ex. Fiche technique dégraissant Sanet"></div>
-          <div class="field"><label for="dc">Catégorie</label><select id="dc">${DOC_ORDER.map((c) => `<option value="${c}" ${st.categorie === c ? 'selected' : ''}>${esc(DOC_CATS[c].label)}</option>`).join('')}</select></div>
+          <div class="field"><label for="dc">Catégorie</label><select id="dc">${catOptions(st.categorie, true)}</select></div>
+          ${st.categorie === '__new' ? `<div class="field"><label for="dnew">Nom de la nouvelle catégorie</label><input id="dnew" value="${esc(st.nouvelle)}" placeholder="ex. Analyses d’eau, Factures énergie"></div>` : ''}
           ${isAdmin ? `<label class="toggle"><input type="checkbox" id="dp" ${st.prive ? 'checked' : ''}><span>Visible seulement par la responsable</span></label>` : ''}
         </section>
         <section class="card pad stack" style="gap:10px">
@@ -192,12 +209,22 @@ function renderAdd(view, session) {
     const titre = st.titre.trim();
     if (!titre) { toast('Donnez un titre au document.'); return; }
     if (!st.files.length) { toast('Ajoutez au moins une photo ou un PDF.'); return; }
+    let categorie = st.categorie;
+    let newCat = null;
+    if (categorie === '__new') {
+      const label = st.nouvelle.trim();
+      if (!label) { toast('Donnez un nom à la nouvelle catégorie.'); return; }
+      const existing = catOrder().find((c) => cat(c).label.toLowerCase() === label.toLowerCase());
+      if (existing) categorie = existing;
+      else { categorie = `c_${slug(label) || Date.now()}`; newCat = { label, prive: isAdmin ? !!st.prive : false }; }
+    }
     const total = st.files.reduce((s, x) => s + x.bytes.length, 0);
     if (total > MAX_TOTAL) { toast(`Document trop lourd (${fmtSize(total)}). Maximum ${fmtSize(MAX_TOTAL)}.`, 5000); return; }
     if (!navigator.onLine) toast('Hors ligne : le document sera envoyé au retour du réseau.', 4000);
     busy = true;
     const ref = doc(collection(db, 'documents'));
     const b = writeBatch(db);
+    if (newCat) b.set(doc(db, 'doc_categories', categorie), { ...newCat, createdAt: serverTimestamp(), par: session.user.uid });
     const fichiers = st.files.map((x, fi) => {
       const n = Math.ceil(x.bytes.length / CHUNK);
       for (let i = 0; i < n; i += 1) {
@@ -209,7 +236,7 @@ function renderAdd(view, session) {
     });
     b.set(ref, {
       titre,
-      categorie: st.categorie,
+      categorie,
       prive: isAdmin ? !!st.prive : false,
       fichiers,
       date: today(),
@@ -227,7 +254,9 @@ function renderAdd(view, session) {
     if ((e.target.id === 'fcam' || e.target.id === 'ffile') && e.target.files?.length) { read(); addFiles(e.target.files); }
     else if (e.target.id === 'dc') {
       read();
-      if (isAdmin) { st.prive = DOC_CATS[st.categorie].prive; const p = view.querySelector('#dp'); if (p) p.checked = st.prive; }
+      if (isAdmin && st.categorie !== '__new') { st.prive = !!cat(st.categorie).prive; }
+      draw();
+      if (st.categorie === '__new') view.querySelector('#dnew')?.focus();
     }
   });
   view.addEventListener('click', (e) => {
@@ -235,8 +264,9 @@ function renderAdd(view, session) {
     if (b) { read(); const [x] = st.files.splice(Number(b.dataset.delfile), 1); if (x.url) URL.revokeObjectURL(x.url); draw(); }
   });
   view.addEventListener('submit', (e) => { e.preventDefault(); if (!busy) save(); });
+  const unc = onSnapshot(collection(db, 'doc_categories'), (s) => { setCustom(s); read(); draw(); });
   draw();
-  return () => st.files.forEach((x) => x.url && URL.revokeObjectURL(x.url));
+  return () => { unc(); st.files.forEach((x) => x.url && URL.revokeObjectURL(x.url)); };
 }
 
 // ---------- Consultation ----------
@@ -251,13 +281,15 @@ function renderView(view, id, session) {
     if (!alive) return;
     if (!s || !s.exists()) { view.innerHTML = '<div class="card pad">Document introuvable. <a href="#/documents">Retour</a></div>'; return; }
     const d = s.data();
+    try { setCustom(await getDocs(collection(db, 'doc_categories'))); } catch (e) { /* hors ligne : catégories de base */ }
+    if (!alive) return;
     view.innerHTML = `
       <div class="row" style="gap:8px"><a href="#/documents" class="iconbtn" aria-label="Retour">${icon('back', 24)}</a><h1 class="title">${esc(d.titre)}</h1></div>
-      <span class="muted">${esc(DOC_CATS[d.categorie]?.label || '')} · ajouté le ${esc(shortDate(dateFromKey(d.date)))} par ${esc(d.ajouteParNom || '')}${d.prive ? ' · visible seulement par la responsable' : ''}</span>
+      <span class="muted">${esc(cat(d.categorie).label)} · ajouté le ${esc(shortDate(dateFromKey(d.date)))} par ${esc(d.ajouteParNom || '')}${d.prive ? ' · visible seulement par la responsable' : ''}</span>
       ${isAdmin ? `<form class="card pad stack" id="de" style="gap:12px">
         <div class="form-grid">
           <div class="field"><label for="et">Titre</label><input id="et" value="${esc(d.titre)}"></div>
-          <div class="field"><label for="ec">Catégorie</label><select id="ec">${DOC_ORDER.map((c) => `<option value="${c}" ${d.categorie === c ? 'selected' : ''}>${esc(DOC_CATS[c].label)}</option>`).join('')}</select></div>
+          <div class="field"><label for="ec">Catégorie</label><select id="ec">${catOptions(known(d.categorie) ? d.categorie : 'autre', false)}</select></div>
         </div>
         <label class="toggle"><input type="checkbox" id="ep" ${d.prive ? 'checked' : ''}><span>Visible seulement par la responsable</span></label>
         <div class="row" style="gap:8px;flex-wrap:wrap"><button type="submit" class="btn small">Enregistrer</button>
