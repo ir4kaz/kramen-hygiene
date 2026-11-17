@@ -17,6 +17,7 @@ const PATHS = {
   check: '<path d="M5 12l5 5 9-10"/>',
   cloudoff: '<path d="M3 3l18 18"/><path d="M8 8a5 5 0 0 0-1 9.9h10"/><path d="M17.5 17.5A4 4 0 0 0 16 10h-1.3A6 6 0 0 0 10 6.3"/>',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+  download: '<path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/>',
   backspace: '<path d="M21 5H8l-6 7 6 7h13Z"/><path d="M12 9l6 6"/><path d="M18 9l-6 6"/>',
 };
 

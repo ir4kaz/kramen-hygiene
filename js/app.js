@@ -8,6 +8,7 @@ import { renderHome } from './views/home.js';
 import { renderTemperatures } from './views/temperatures.js';
 import { renderAdmin } from './views/admin.js';
 import { renderSoon } from './views/soon.js';
+import { renderHistorique } from './views/historique.js';
 
 const app = document.getElementById('app');
 
@@ -29,6 +30,7 @@ const BOTTOM = ['accueil', 'temperatures', 'historique', 'admin'];
 const ROUTES = {
   accueil: renderHome,
   temperatures: renderTemperatures,
+  historique: renderHistorique,
   admin: renderAdmin,
 };
 

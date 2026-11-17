@@ -210,3 +210,41 @@ h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 @media (min-width: 900px) { #toast { bottom: 32px; } }
 @media (max-width: 899px) { .desktop-only { display: none !important; } }
+
+/* ---------- Historique ---------- */
+.segmented.seg3 { grid-template-columns: repeat(3, minmax(0, 1fr)); width: 300px; max-width: 100%; }
+.dateinput { min-height: 40px; padding: 0 10px; border-radius: var(--radius-sm); border: 1.5px solid var(--line); background: var(--surface); }
+.hist { border-collapse: collapse; width: 100%; font-size: 14px; }
+.hist th, .hist td { border-top: 1px solid var(--line); padding: 6px 4px; }
+.hist .app { text-align: left; padding: 8px 12px; font-weight: 600; white-space: nowrap; position: sticky; left: 0; background: var(--surface); z-index: 1; }
+.hist .app .rng { display: block; font-size: 11px; color: var(--muted); font-weight: 500; }
+.hist thead th { font-size: 12px; color: var(--muted); font-weight: 600; border-top: none; }
+.hist .c { text-align: center; min-width: 40px; }
+.hist .day { border-left: 1px solid var(--line); white-space: nowrap; }
+.hist td.v:nth-child(even), .hist th.ms:nth-child(odd) { border-left: 1px solid var(--line); }
+.hist .v.out { color: var(--alert); background: var(--alert-soft); font-weight: 700; }
+.hist .v.empty { color: #C4C8CE; }
+.hist sup { font-size: 10px; }
+.print-only { display: none; }
+
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  body { background: #fff; font-size: 11px; }
+  .sidenav, .topbar, .bottomnav, .no-print, #toast { display: none !important; }
+  .layout { display: block; }
+  .content { padding: 0; max-width: none; gap: 10px; }
+  .print-only { display: block; }
+  .print-head { display: flex !important; justify-content: space-between; border-bottom: 2px solid #111; padding-bottom: 6px; margin-bottom: 6px; font-size: 11px; }
+  .card { box-shadow: none; border-color: #999; }
+  .tablewrap { overflow: visible; }
+  .hist-card { break-inside: avoid; page-break-inside: avoid; }
+  .hist { font-size: 9px; }
+  .hist th, .hist td { border-color: #bbb; padding: 3px 2px; }
+  .hist .app { position: static; padding: 3px 6px; }
+  .hist .c { min-width: 0; }
+  .hist .v.out { background: #fbdada !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .table th, .table td { padding: 4px 8px; font-size: 10px; }
+  .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+  .sign { margin-top: 18px; font-size: 12px; }
+  .title { font-size: 18px; }
+}
