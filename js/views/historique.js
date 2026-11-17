@@ -88,10 +88,18 @@ export function renderHistorique(view, { session }) {
     // Tableaux : 16 jours max par tableau pour rester lisible (et tenir sur une page A4).
     const chunks = [];
     for (let i = 0; i < days.length; i += 16) chunks.push(days.slice(i, i + 16));
-    const tables = apps.length ? chunks.map((c) => tableHtml(c, apps, map)).join('') : '<div class="card pad muted">Aucun appareil.</div>';
+    const tables = apps.length
+      ? chunks.map((c, i) => (chunks.length > 1
+        ? `<div class="hist-chunk${i ? ' next' : ''}"><div class="print-only chunk-title">${esc(label)} — du ${esc(fmtDay(c[0]))} au ${esc(fmtDay(c[c.length - 1]))}</div>${tableHtml(c, apps, map)}</div>`
+        : tableHtml(c, apps, map))).join('')
+      : '<div class="card pad muted">Aucun appareil.</div>';
 
     const outs = releves.filter((r) => r.horsNorme).sort((a, b) => a.date.localeCompare(b.date) || a.moment.localeCompare(b.moment));
-    const expected = apps.filter((a) => a.actif !== false).length * days.filter((d) => toKey(d) <= today()).length * 2;
+    // Relevés attendus : à partir du premier relevé de la période (pas avant la mise en service de l'appli).
+    const first = releves.reduce((m, r) => (!m || r.date < m ? r.date : m), null);
+    const expected = first
+      ? apps.filter((a) => a.actif !== false).length * days.filter((d) => toKey(d) >= first && toKey(d) <= today()).length * 2
+      : 0;
     const nb = releves.length;
 
     const outHtml = outs.length ? `<table class="table resp">

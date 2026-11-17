@@ -239,6 +239,8 @@ h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
   .card { box-shadow: none; border-color: #999; }
   .tablewrap { overflow: visible; }
   .hist-card { break-inside: avoid; page-break-inside: avoid; }
+  .hist-chunk.next { break-before: page; page-break-before: always; padding-top: 10mm; }
+  .chunk-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
   .hist { font-size: 9px; }
   .hist th, .hist td { border-color: #bbb; padding: 3px 2px; }
   .hist .app { position: static; padding: 3px 6px; }
