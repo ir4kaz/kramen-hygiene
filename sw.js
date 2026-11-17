@@ -1,6 +1,6 @@
 // Service worker : garde l'appli en cache pour qu'elle s'ouvre sans réseau.
 // Changer VERSION à chaque mise à jour pour forcer le rafraîchissement.
-const VERSION = 'v11';
+const VERSION = 'v12';
 const CACHE = `kramen-hygiene-${VERSION}`;
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
@@ -31,7 +31,8 @@ self.addEventListener('fetch', (e) => {
   // Fichiers de l'appli : réseau d'abord (pour avoir les mises à jour), cache si hors ligne.
   if (url.origin === location.origin) {
     e.respondWith(
-      fetch(req).then((res) => {
+      // cache: 'no-cache' : on redemande toujours au serveur s'il y a une nouvelle version.
+      fetch(req, { cache: 'no-cache' }).then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(req, copy));
         return res;
