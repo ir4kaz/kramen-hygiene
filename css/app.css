@@ -312,3 +312,4 @@ html, body { overflow-x: hidden; }
   .grid-tiles { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   .tile.wide { grid-column: auto; min-height: 170px; }
 }
+.warnbox { background: var(--warn-soft); color: var(--warn); border-radius: var(--radius); padding: 12px 16px; font-size: 15px; }

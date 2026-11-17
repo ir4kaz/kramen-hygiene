@@ -138,3 +138,25 @@ export const SEED_TACHES = [
   { zone: 'bar', frequence: 'approfondi', nom: 'Poubelles et zone déchets', detail: 'Vider ; nettoyer et désinfecter intérieur, extérieur, couvercles et emplacement.' },
   { zone: 'bar', frequence: 'approfondi', nom: 'Sols, plinthes et recoins', detail: 'Déplacer les objets légers ; nettoyer sous les meubles, angles et plinthes ; laver le sol.' },
 ];
+
+// ---------- Choix du jour (aujourd'hui / hier, ou n'importe quel jour pour la responsable) ----------
+export function yesterday() { const d = new Date(); d.setDate(d.getDate() - 1); return today(d); }
+export function dateFromKey(k) { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); }
+
+export function dayPickerHtml(day, isAdmin) {
+  const t = today();
+  const y = yesterday();
+  return `<div class="row" style="gap:8px;flex-wrap:wrap">
+    <div class="segmented" role="group" aria-label="Jour" style="width:240px">
+      <button type="button" data-day="${y}" class="${day === y ? 'on' : ''}" aria-pressed="${day === y}">Hier</button>
+      <button type="button" data-day="${t}" class="${day === t ? 'on' : ''}" aria-pressed="${day === t}">Aujourd’hui</button>
+    </div>
+    ${isAdmin ? `<input type="date" class="dateinput" data-daypick max="${t}" value="${day}" aria-label="Choisir un autre jour">` : ''}
+  </div>`;
+}
+
+export function pastDayBanner(day) {
+  if (day === today()) return '';
+  const txt = longDate(dateFromKey(day));
+  return `<div class="warnbox">Vous complétez le <strong>${esc(txt)}</strong> (jour passé).</div>`;
+}

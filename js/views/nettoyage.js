@@ -6,6 +6,7 @@ import {
 import {
   esc, icon, today, shortDate, hhmm, toast,
   ZONES, ZONE_ORDER, FREQS, FREQ_ORDER, currentService, SEED_TACHES,
+  dayPickerHtml, pastDayBanner, dateFromKey,
 } from '../util.js';
 
 export const sessionId = (date, seance, service) => (seance === 'service' ? `${date}_service-${service}` : `${date}_${seance}`);
@@ -17,7 +18,7 @@ const daysBetween = (a, b) => {
 };
 
 export function renderNettoyage(view, { session }) {
-  const day = today();
+  let day = today();
   let seance = 'service';
   let service = currentService();
   let taches = [];
@@ -93,9 +94,11 @@ export function renderNettoyage(view, { session }) {
     view.innerHTML = `
       <div class="stack" style="gap:4px">
         <h1 class="title">Nettoyage</h1>
-        <span class="small muted">${esc(shortDate())}</span>
+        <span class="small muted">${esc(shortDate(dateFromKey(day)))}</span>
         <span id="savestate">${saveState()}</span>
       </div>
+      ${dayPickerHtml(day, isAdmin)}
+      ${pastDayBanner(day)}
       <div class="row" style="flex-wrap:wrap;gap:12px">
         <div class="segmented seg3" role="group" aria-label="Type de nettoyage">${seg}</div>
         ${sub}
@@ -124,7 +127,9 @@ export function renderNettoyage(view, { session }) {
       const copy = { ...items }; delete copy[id];
       sess = { ...(sess || {}), items: copy };
     } else {
-      const entry = { nom: t.nom, zone: t.zone || 'autre', par: session.user.uid, parNom: session.user.prenom, at: Date.now() };
+      const entry = {
+        nom: t.nom, zone: t.zone || 'autre', par: session.user.uid, parNom: session.user.prenom, at: Date.now(), apresCoup: day !== today(),
+      };
       change = { ...base, items: { [id]: entry } };
       sess = { ...(sess || {}), items: { ...items, [id]: entry } };
     }
@@ -166,10 +171,19 @@ export function renderNettoyage(view, { session }) {
     const b = e.target.closest('button');
     if (!b) return;
     if (b.dataset.task) toggle(b.dataset.task);
+    else if (b.dataset.day && b.dataset.day !== day) changeDay(b.dataset.day);
     else if (b.dataset.seance && b.dataset.seance !== seance) { seance = b.dataset.seance; subscribe(); }
     else if (b.dataset.service && b.dataset.service !== service) { service = b.dataset.service; subscribe(); }
     else if (b.hasAttribute('data-note')) saveNote();
     else if (b.hasAttribute('data-seed')) { b.disabled = true; seed(); }
+  });
+  function changeDay(d) {
+    day = d;
+    if (d !== today()) service = 'soir'; else service = currentService();
+    subscribe();
+  }
+  view.addEventListener('change', (e) => {
+    if (e.target.matches('[data-daypick]') && e.target.value && e.target.value <= today()) changeDay(e.target.value);
   });
   view.addEventListener('focusin', (e) => { if (e.target.id === 'note') editingNote = true; });
   view.addEventListener('focusout', (e) => {

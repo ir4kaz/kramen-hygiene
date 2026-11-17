@@ -5,11 +5,14 @@ import {
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
   esc, icon, today, shortDate, currentMoment, fmtTemp, parseTemp, rangeLabel, isOut, toast,
+  dayPickerHtml, pastDayBanner, dateFromKey,
   TYPES, TYPE_ORDER,
 } from '../util.js';
 
 export function renderTemperatures(view, { session }) {
-  const day = today();
+  let day = today();
+  const isAdmin = session.user.role === 'admin';
+  let un2 = null;
   let moment = currentMoment();
   let appareils = [];
   let releves = []; // relevés du jour (matin + soir)
@@ -95,7 +98,7 @@ export function renderTemperatures(view, { session }) {
       <div class="row between" style="flex-wrap:wrap;gap:12px">
         <div class="stack" style="gap:4px">
           <h1 class="title">Températures</h1>
-          <span class="small muted">Relevé du ${moment} · ${esc(shortDate())} · ${done} / ${list.length}</span>
+          <span class="small muted">Relevé du ${moment} · ${esc(shortDate(dateFromKey(day)))} · ${done} / ${list.length}</span>
           <span id="savestate">${saveStateHtml()}</span>
         </div>
         <div class="segmented" role="group" aria-label="Moment du relevé" style="width:220px">
@@ -103,6 +106,8 @@ export function renderTemperatures(view, { session }) {
           <button type="button" data-moment="soir" class="${moment === 'soir' ? 'on' : ''}" aria-pressed="${moment === 'soir'}">Soir</button>
         </div>
       </div>
+      ${dayPickerHtml(day, isAdmin)}
+      ${pastDayBanner(day)}
       <div class="temp-layout">
         <div class="temp-groups">${groupsHtml()}</div>
         ${keypadHtml()}
@@ -157,6 +162,7 @@ export function renderTemperatures(view, { session }) {
       at: serverTimestamp(),
       par: session.user.uid,
       parNom: session.user.prenom,
+      apresCoup: day !== today(),
     };
     if (prev && prev.valeur !== value) {
       // On garde une trace de l'ancienne valeur (important en cas de contrôle).
@@ -192,6 +198,7 @@ export function renderTemperatures(view, { session }) {
     else if (t.dataset.key) press(t.dataset.key);
     else if (t.hasAttribute('data-ok')) validate();
     else if (t.hasAttribute('data-close')) close();
+    else if (t.dataset.day && t.dataset.day !== day) { changeDay(t.dataset.day); }
     else if (t.dataset.moment && t.dataset.moment !== moment) { moment = t.dataset.moment; selected = null; buffer = ''; draw(); }
   });
 
@@ -206,6 +213,9 @@ export function renderTemperatures(view, { session }) {
     else return;
     e.preventDefault();
   };
+  view.addEventListener('change', (e) => {
+    if (e.target.matches('[data-daypick]') && e.target.value && e.target.value <= today()) changeDay(e.target.value);
+  });
   document.addEventListener('keydown', onKey);
   const onNet = () => { const s = view.querySelector('#savestate'); if (s) s.innerHTML = saveStateHtml(); };
   window.addEventListener('online', onNet);
@@ -216,15 +226,24 @@ export function renderTemperatures(view, { session }) {
     appareils = s.docs.map((d) => ({ id: d.id, ...d.data() }));
     draw();
   });
-  const un2 = onSnapshot(query(collection(db, 'releves'), where('date', '==', day)), { includeMetadataChanges: true }, (s) => {
+  function subscribeDay() {
+    if (un2) un2();
+    un2 = onSnapshot(query(collection(db, 'releves'), where('date', '==', day)), { includeMetadataChanges: true }, (s) => {
     releves = s.docs.map((d) => ({ id: d.id, ...d.data() }));
     pending = s.metadata.hasPendingWrites;
     // On ne redessine pas tout pendant une saisie (évite de perdre le pavé).
     if (selected) onNet(); else draw();
   });
+  }
+  function changeDay(d) {
+    day = d; selected = null; buffer = '';
+    if (d !== today()) moment = 'soir'; else moment = currentMoment();
+    releves = []; draw(); subscribeDay();
+  }
+  subscribeDay();
 
   return () => {
-    un1(); un2();
+    un1(); if (un2) un2();
     document.removeEventListener('keydown', onKey);
     window.removeEventListener('online', onNet);
     window.removeEventListener('offline', onNet);
