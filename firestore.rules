@@ -1,0 +1,56 @@
+rules_version = '2';
+// Règles de sécurité Firestore — K-Ramen Hygiène.
+// À coller dans la console Firebase : Firestore Database > Règles > Publier.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function meAfter() { return getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function active() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && me().actif == true; }
+    function isAdmin() { return active() && me().role == 'admin'; }
+    function setupDone() { return exists(/databases/$(database)/documents/config/setup); }
+    // Pendant la toute première installation (même lot d'écritures).
+    function setupBatchAdmin() {
+      return signedIn() && !setupDone()
+        && existsAfter(/databases/$(database)/documents/config/setup)
+        && meAfter().role == 'admin';
+    }
+
+    // Indique seulement si l'appli est déjà installée (lisible avant connexion).
+    match /config/setup {
+      allow read: if true;
+      allow create: if signedIn() && !setupDone() && request.resource.data.by == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || active());
+      // Première installation : la responsable crée son propre profil admin.
+      allow create: if (signedIn() && request.auth.uid == uid && !setupDone()
+                        && existsAfter(/databases/$(database)/documents/config/setup)
+                        && request.resource.data.role == 'admin')
+                    || isAdmin();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /appareils/{id} {
+      allow read: if active();
+      allow create: if isAdmin() || setupBatchAdmin();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /releves/{id} {
+      allow read: if active();
+      allow create, update: if active()
+        && request.resource.data.par == request.auth.uid
+        && request.resource.data.valeur is number
+        && request.resource.data.date is string
+        && request.resource.data.moment in ['matin', 'soir'];
+      // On ne supprime jamais un relevé (traçabilité pour les contrôles).
+      allow delete: if false;
+    }
+  }
+}
