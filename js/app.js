@@ -9,6 +9,7 @@ import { renderTemperatures } from './views/temperatures.js';
 import { renderAdmin } from './views/admin.js';
 import { renderSoon } from './views/soon.js';
 import { renderHistorique } from './views/historique.js';
+import { renderAide } from './views/aide.js';
 
 const app = document.getElementById('app');
 
@@ -23,6 +24,7 @@ const NAV = [
   { id: 'documents', label: 'Documents', icon: 'folder' },
   { id: 'historique', label: 'Historique', icon: 'history' },
   { id: 'admin', label: 'Admin', icon: 'admin', adminOnly: true },
+  { id: 'aide', label: 'Aide', icon: 'help' },
 ];
 // Sur téléphone, le menu du bas garde l'essentiel.
 const BOTTOM = ['accueil', 'temperatures', 'historique', 'admin'];
@@ -31,6 +33,7 @@ const ROUTES = {
   accueil: renderHome,
   temperatures: renderTemperatures,
   historique: renderHistorique,
+  aide: renderAide,
   admin: renderAdmin,
 };
 
@@ -59,7 +62,7 @@ function layout(active) {
     </nav>
     <header class="topbar">
       <div class="brandbox"><span class="brand">K-RAMEN</span><span class="muted small">Hygiène</span></div>
-      <button class="iconbtn" id="logout" type="button" aria-label="Se déconnecter">${icon('logout', 22)}</button>
+      <div class="row" style="gap:4px"><a class="iconbtn" href="#/aide" aria-label="Aide">${icon('help', 22)}</a><button class="iconbtn" id="logout" type="button" aria-label="Se déconnecter">${icon('logout', 22)}</button></div>
     </header>
     <main class="content" id="view"></main>
     <nav class="bottomnav" aria-label="Menu">${bottom}</nav>

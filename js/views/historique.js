@@ -39,7 +39,8 @@ function shift(mode, ref, dir) {
 }
 
 export function renderHistorique(view, { session }) {
-  let mode = 'semaine';
+  // Sur téléphone on démarre sur « Jour » (tableau étroit), sur tablette/PC sur « Semaine ».
+  let mode = window.matchMedia('(max-width: 899px)').matches ? 'jour' : 'semaine';
   let ref = today();
   let appareils = [];
   let releves = [];
@@ -64,9 +65,7 @@ export function renderHistorique(view, { session }) {
       const cells = days.map((d) => ['matin', 'soir'].map((m) => {
         const r = map[`${toKey(d)}_${m}_${a.id}`];
         if (!r) return '<td class="c v empty">·</td>';
-        const corr = Array.isArray(r.historique) && r.historique.length;
-        const title = `${r.parNom || ''}${corr ? ` — corrigé (avant : ${r.historique.map((h) => shortTemp(h.valeur)).join(', ')})` : ''}`;
-        return `<td class="c v ${r.horsNorme ? 'out' : ''}" title="${esc(title)}">${esc(shortTemp(r.valeur))}${corr ? '<sup>*</sup>' : ''}</td>`;
+        return `<td class="c v ${r.horsNorme ? 'out' : ''}" title="${esc(r.parNom || '')}">${esc(shortTemp(r.valeur))}</td>`;
       }).join('')).join('');
       return `<tr><th class="app">${esc(a.nom)}<span class="rng">${esc(rangeLabel(a.min, a.max))}</span></th>${cells}</tr>`;
     }).join('');
@@ -92,22 +91,15 @@ export function renderHistorique(view, { session }) {
     const tables = apps.length ? chunks.map((c) => tableHtml(c, apps, map)).join('') : '<div class="card pad muted">Aucun appareil.</div>';
 
     const outs = releves.filter((r) => r.horsNorme).sort((a, b) => a.date.localeCompare(b.date) || a.moment.localeCompare(b.moment));
-    const corrs = releves.filter((r) => Array.isArray(r.historique) && r.historique.length);
     const expected = apps.filter((a) => a.actif !== false).length * days.filter((d) => toKey(d) <= today()).length * 2;
     const nb = releves.length;
 
-    const outHtml = outs.length ? `<table class="table">
+    const outHtml = outs.length ? `<table class="table resp">
       <thead><tr><th>Date</th><th>Appareil</th><th>Valeur</th><th>Attendu</th><th>Relevé par</th></tr></thead>
-      <tbody>${outs.map((r) => `<tr><td>${esc(fmtDay(fromKey(r.date)))} · ${esc(r.moment)}</td><td>${esc(r.appareilNom)}</td>
-        <td><span class="badge alert">${esc(fmtTemp(r.valeur))}</span></td><td>${esc(rangeLabel(r.min, r.max))}</td><td>${esc(r.parNom)}</td></tr>`).join('')}</tbody></table>`
+      <tbody>${outs.map((r) => `<tr><td data-label="Date">${esc(fmtDay(fromKey(r.date)))} · ${esc(r.moment)}</td><td data-label="Appareil">${esc(r.appareilNom)}</td>
+        <td data-label="Valeur"><span class="badge alert">${esc(fmtTemp(r.valeur))}</span></td><td data-label="Attendu">${esc(rangeLabel(r.min, r.max))}</td><td data-label="Relevé par">${esc(r.parNom)}</td></tr>`).join('')}</tbody></table>`
       : '<p class="pad muted" style="margin:0">Aucune température hors norme sur la période.</p>';
 
-    const corrHtml = corrs.length ? `<table class="table">
-      <thead><tr><th>Date</th><th>Appareil</th><th>Ancienne(s) valeur(s)</th><th>Valeur retenue</th><th>Par</th></tr></thead>
-      <tbody>${corrs.map((r) => `<tr><td>${esc(fmtDay(fromKey(r.date)))} · ${esc(r.moment)}</td><td>${esc(r.appareilNom)}</td>
-        <td>${r.historique.map((h) => `${esc(fmtTemp(h.valeur))} <span class="small muted">(${esc(h.parNom || '?')})</span>`).join('<br>')}</td>
-        <td>${esc(fmtTemp(r.valeur))}</td><td>${esc(r.parNom)}</td></tr>`).join('')}</tbody></table>`
-      : '<p class="pad muted" style="margin:0">Aucune correction sur la période.</p>';
 
     const now = new Date();
     view.innerHTML = `
@@ -134,11 +126,10 @@ export function renderHistorique(view, { session }) {
       <div id="hist-body" class="stack" style="gap:16px">
         <div class="stack" style="gap:4px">
           <h2 style="font-size:20px">${esc(label)}</h2>
-          <span class="small muted">${nb} relevé${nb > 1 ? 's' : ''}${expected ? ` sur ${expected} attendus à ce jour` : ''} · ${outs.length} hors norme · ${corrs.length} correction${corrs.length > 1 ? 's' : ''}. En rouge : hors norme. * : valeur corrigée.</span>
+          <span class="small muted">${nb} relevé${nb > 1 ? 's' : ''}${expected ? ` sur ${expected} attendus à ce jour` : ''} · ${outs.length} hors norme. En rouge : hors norme.</span>
         </div>
         ${tables}
         <section class="card avoid-break"><h2 class="pad" style="font-size:16px;padding-bottom:0">Températures hors norme</h2>${outHtml}</section>
-        <section class="card avoid-break"><h2 class="pad" style="font-size:16px;padding-bottom:0">Corrections</h2>${corrHtml}</section>
         <div class="print-only sign">Visa de la responsable : ______________________________ &nbsp;&nbsp; Date : ____ / ____ / ________</div>
       </div>`;
   }

@@ -6,7 +6,7 @@ export const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => (
 
 const PATHS = {
   thermo: '<path d="M14 14.76V4a2 2 0 0 0-4 0v10.76a4 4 0 1 0 4 0Z"/><path d="M12 9v7"/>',
-  clean: '<path d="M3 21h18"/><path d="M7 21V11h10v10"/><path d="M9 11V5l6-2v8"/>',
+  clean: '<path d="M12 2v9"/><path d="M8 11h8a1 1 0 0 1 1 1v2H7v-2a1 1 0 0 1 1-1Z"/><path d="M7 14l-2 7h14l-2-7"/><path d="M10 17v4"/><path d="M14 17v4"/>',
   truck: '<path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
   folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
   home: '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/>',
@@ -18,6 +18,9 @@ const PATHS = {
   cloudoff: '<path d="M3 3l18 18"/><path d="M8 8a5 5 0 0 0-1 9.9h10"/><path d="M17.5 17.5A4 4 0 0 0 16 10h-1.3A6 6 0 0 0 10 6.3"/>',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
   download: '<path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17h.01"/>',
+  chat: '<path d="M20 11.5a8 8 0 0 1-11.6 7.1L4 20l1.4-4.2A8 8 0 1 1 20 11.5Z"/>',
+  sms: '<path d="M4 5h16v11H8l-4 4Z"/><path d="M8 10h8"/>',
   backspace: '<path d="M21 5H8l-6 7 6 7h13Z"/><path d="M12 9l6 6"/><path d="M18 9l-6 6"/>',
 };
 

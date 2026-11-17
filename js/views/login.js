@@ -8,6 +8,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import { esc, slug, TYPES } from '../util.js';
 import { reloadProfile } from '../app.js';
+import { supportLinks, SUPPORT } from './aide.js';
 
 // Appareils de départ (notes de la patronne).
 const SEED = [
@@ -48,7 +49,7 @@ export async function renderLogin(app) {
       <div class="field"><label for="c">Code (6 chiffres)</label><input id="c" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" required></div>
       <p class="error hidden" id="err"></p>
       <button class="btn primary block" type="submit" id="go">Se connecter</button>
-      <p class="small muted" style="margin:0">Code oublié ? Demandez à la responsable.</p>
+      <p class="small muted" style="margin:0">Code oublié ? Demandez à la responsable.<br>Problème avec l’appli ? <a href="${esc(supportLinks().whatsapp)}" target="_blank" rel="noopener">Contacter ${esc(SUPPORT.nom)}</a></p>
     </form>
   </div>`;
   const f = app.querySelector('#f');

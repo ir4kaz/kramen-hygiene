@@ -228,8 +228,9 @@ h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
 .print-only { display: none; }
 
 @media print {
-  @page { size: A4 landscape; margin: 10mm; }
-  body { background: #fff; font-size: 11px; }
+  /* Marge de page à 0 : le navigateur n'a plus la place d'ajouter l'adresse du site et la date. */
+  @page { size: A4 landscape; margin: 0; }
+  body { background: #fff; font-size: 11px; padding: 10mm 12mm; }
   .sidenav, .topbar, .bottomnav, .no-print, #toast { display: none !important; }
   .layout { display: block; }
   .content { padding: 0; max-width: none; gap: 10px; }
@@ -247,4 +248,24 @@ h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
   .avoid-break { break-inside: avoid; page-break-inside: avoid; }
   .sign { margin-top: 18px; font-size: 12px; }
   .title { font-size: 18px; }
+}
+
+/* ---------- Pas de défilement horizontal de la page entière ---------- */
+html, body { overflow-x: hidden; }
+.layout > *, .content, .content > * { min-width: 0; }
+.card { max-width: 100%; }
+.tablewrap { -webkit-overflow-scrolling: touch; }
+
+/* Tableaux « responsive » : sur téléphone, chaque ligne devient une petite fiche. */
+@media (max-width: 640px) {
+  .table.resp thead { display: none; }
+  .table.resp tr { display: block; padding: 10px 0; border-top: 1px solid var(--line); }
+  .table.resp td { display: flex; justify-content: space-between; gap: 12px; border: none; padding: 4px 16px; text-align: right; }
+  .table.resp td::before { content: attr(data-label); color: var(--muted); font-size: 13px; text-align: left; }
+}
+@media print {
+  .table.resp thead { display: table-header-group; }
+  .table.resp tr { display: table-row; }
+  .table.resp td { display: table-cell; text-align: left; }
+  .table.resp td::before { content: none; }
 }
