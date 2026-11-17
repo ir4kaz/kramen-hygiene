@@ -29,7 +29,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }
-button, input, select { font: inherit; color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 a { color: var(--accent); }
 h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
@@ -234,7 +234,7 @@ h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
   html, body { overflow: visible !important; height: auto !important; }
   body { background: #fff; font-size: 11px; padding: 10mm 12mm; }
   .sidenav, .topbar, .bottomnav, .no-print, #toast { display: none !important; }
-  .layout { display: block; }
+  .layout { display: block; min-height: 0 !important; }
   /* Chrome ignore les sauts de page à l'intérieur d'une mise en page « flex » : on repasse en blocs simples. */
   .content, #hist-body, .hist-chunk { display: block !important; padding: 0; max-width: none; }
   #hist-body > * { margin-bottom: 10px; }
@@ -274,4 +274,41 @@ html, body { overflow-x: hidden; }
   .table.resp tr { display: table-row; }
   .table.resp td { display: table-cell; text-align: left; }
   .table.resp td::before { content: none; }
+}
+
+/* ---------- Nettoyage ---------- */
+.clean-groups { display: flex; flex-direction: column; gap: 18px; }
+@media (min-width: 1100px) {
+  .clean-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+}
+.crow { display: flex; align-items: flex-start; gap: 14px; padding: 12px 16px; }
+.crow + .crow { border-top: 1px solid var(--line); }
+.crow.done { background: #FAFDFB; }
+.crow .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.crow .nm { font-size: 15px; font-weight: 600; }
+.crow.done .nm { color: var(--muted); }
+.checkbtn {
+  width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; border: 2px solid #9CA3AF; background: var(--surface);
+  display: inline-flex; align-items: center; justify-content: center; color: #fff;
+}
+.checkbtn[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); }
+.notearea { width: 100%; padding: 12px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--line); font-size: 16px; resize: vertical; }
+.notearea:focus { outline: none; border-color: var(--accent); }
+
+/* Historique du nettoyage */
+.hist.clean .cl { text-align: left; padding: 8px 10px; border-left: 1px solid var(--line); vertical-align: top; min-width: 120px; }
+.hist.clean thead .cl { font-size: 12px; }
+.hist.clean td.cl strong { display: block; font-size: 14px; }
+.hist.clean td.cl span { display: block; font-size: 12px; color: var(--muted); }
+.hist.clean td.full strong { color: var(--ok); }
+.hist.clean td.part strong { color: var(--warn); }
+.hist.clean td.empty { color: #C4C8CE; }
+.hist.clean td.note { min-width: 180px; font-size: 13px; color: var(--text); }
+@media print { .hist.clean .cl { min-width: 0; padding: 4px 6px; } .hist.clean td.cl span { font-size: 9px; } }
+
+/* Tuiles de l'accueil : la tuile « Historique » prend toute la largeur sur téléphone. */
+.tile.wide { grid-column: span 2; min-height: 96px; }
+@media (min-width: 900px) {
+  .grid-tiles { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .tile.wide { grid-column: auto; min-height: 170px; }
 }

@@ -10,6 +10,7 @@ import { renderAdmin } from './views/admin.js';
 import { renderSoon } from './views/soon.js';
 import { renderHistorique } from './views/historique.js';
 import { renderAide } from './views/aide.js';
+import { renderNettoyage } from './views/nettoyage.js';
 
 const app = document.getElementById('app');
 
@@ -27,11 +28,12 @@ const NAV = [
   { id: 'aide', label: 'Aide', icon: 'help' },
 ];
 // Sur téléphone, le menu du bas garde l'essentiel.
-const BOTTOM = ['accueil', 'temperatures', 'historique', 'admin'];
+const BOTTOM = ['accueil', 'temperatures', 'nettoyage', 'historique', 'admin'];
 
 const ROUTES = {
   accueil: renderHome,
   temperatures: renderTemperatures,
+  nettoyage: renderNettoyage,
   historique: renderHistorique,
   aide: renderAide,
   admin: renderAdmin,

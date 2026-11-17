@@ -4,7 +4,7 @@ import {
   collection, query, where, onSnapshot,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
-  esc, icon, today, fmtTemp, rangeLabel, TYPES, TYPE_ORDER,
+  esc, icon, today, fmtTemp, rangeLabel, hhmm, TYPES, TYPE_ORDER, FREQS,
 } from '../util.js';
 
 const p2 = (n) => String(n).padStart(2, '0');
@@ -42,19 +42,27 @@ export function renderHistorique(view, { session }) {
   // Sur téléphone on démarre sur « Jour » (tableau étroit), sur tablette/PC sur « Semaine ».
   let mode = window.matchMedia('(max-width: 899px)').matches ? 'jour' : 'semaine';
   let ref = today();
+  let kind = 'temperatures'; // ou 'nettoyage'
   let appareils = [];
+  let taches = [];
   let releves = [];
+  let nets = [];
   let unRel = null;
 
   function subscribe() {
     if (unRel) unRel();
     const { start, end } = period(mode, ref);
-    releves = [];
+    releves = []; nets = [];
     draw();
+    const coll = kind === 'temperatures' ? 'releves' : 'nettoyages';
     unRel = onSnapshot(
-      query(collection(db, 'releves'), where('date', '>=', toKey(start)), where('date', '<=', toKey(end))),
-      (s) => { releves = s.docs.map((d) => ({ id: d.id, ...d.data() })); draw(); },
-      (e) => { console.error(e); view.querySelector('#hist-body').innerHTML = `<div class="alertbox">${esc(e.message)}</div>`; },
+      query(collection(db, coll), where('date', '>=', toKey(start)), where('date', '<=', toKey(end))),
+      (s) => {
+        const rows = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+        if (kind === 'temperatures') releves = rows; else nets = rows;
+        draw();
+      },
+      (e) => { console.error(e); const b = view.querySelector('#hist-body'); if (b) b.innerHTML = `<div class="alertbox">${esc(e.message)}</div>`; },
     );
   }
 
@@ -74,10 +82,7 @@ export function renderHistorique(view, { session }) {
       <tbody>${rows}</tbody></table></div>`;
   }
 
-  function draw() {
-    const { start, end, label } = period(mode, ref);
-    const days = [];
-    for (let d = new Date(start); d <= end; d = addDays(d, 1)) days.push(new Date(d));
+  function tempsBody(days, label) {
     const map = {};
     for (const r of releves) map[`${r.date}_${r.moment}_${r.appareilId}`] = r;
     const usedIds = new Set(releves.map((r) => r.appareilId));
@@ -109,11 +114,65 @@ export function renderHistorique(view, { session }) {
       : '<p class="pad muted" style="margin:0">Aucune température hors norme sur la période.</p>';
 
 
+    return {
+      titre: 'Relevés de températures',
+      resume: `${nb} relevé${nb > 1 ? 's' : ''}${expected ? ` sur ${expected} attendus à ce jour` : ''} · ${outs.length} hors norme. En rouge : hors norme.`,
+      contenu: `${tables}
+        <section class="card avoid-break"><h2 class="pad" style="font-size:16px;padding-bottom:0">Températures hors norme</h2>${outHtml}</section>`,
+    };
+  }
+
+  function cleanBody(days) {
+    const actives = (f) => taches.filter((t) => t.actif !== false && t.frequence === f).length;
+    const cols = [
+      { key: 'service-midi', label: 'Après service midi', f: 'service' },
+      { key: 'service-soir', label: 'Après service soir', f: 'service' },
+      { key: 'jour', label: 'Chaque jour', f: 'jour' },
+      { key: 'approfondi', label: 'Approfondi', f: 'approfondi' },
+    ];
+    const map = {};
+    for (const n of nets) map[n.id] = n;
+    const cell = (n, f) => {
+      if (!n || !Object.keys(n.items || {}).length) return '<td class="cl empty">—</td>';
+      const items = Object.values(n.items);
+      const total = Math.max(actives(f), items.length);
+      const who = [...new Set(items.map((i) => i.parNom))].join(', ');
+      const full = items.length >= total;
+      const last = Math.max(...items.map((i) => i.at || 0));
+      return `<td class="cl ${full ? 'full' : 'part'}"><strong>${items.length} / ${total}</strong><span>${esc(who)}${last ? ` · ${esc(hhmm(new Date(last)))}` : ''}</span></td>`;
+    };
+    const rows = days.filter((d) => toKey(d) <= today()).reverse().map((d) => {
+      const k = toKey(d);
+      const notes = cols.map((c) => map[`${k}_${c.key}`]).filter((n) => n && n.anomalies)
+        .map((n) => esc(n.anomalies)).join('<br>');
+      return `<tr><th class="app">${esc(fmtDay(d))}</th>${cols.map((c) => cell(map[`${k}_${c.key}`], c.f)).join('')}<td class="cl note">${notes}</td></tr>`;
+    }).join('');
+    const nbTaches = nets.reduce((s2, n) => s2 + Object.keys(n.items || {}).length, 0);
+    const anomalies = nets.filter((n) => n.anomalies).length;
+    return {
+      titre: 'Plan de nettoyage',
+      resume: `${nbTaches} tâche${nbTaches > 1 ? 's' : ''} cochée${nbTaches > 1 ? 's' : ''} · ${anomalies} remarque${anomalies > 1 ? 's' : ''}. En vert : tout est fait ; en orange : incomplet.`,
+      contenu: rows ? `<div class="tablewrap card hist-card"><table class="hist clean">
+          <thead><tr><th class="app">Jour</th>${cols.map((c) => `<th class="cl">${c.label}</th>`).join('')}<th class="cl">Anomalies / à reprendre</th></tr></thead>
+          <tbody>${rows}</tbody></table></div>`
+        : '<div class="card pad muted">Rien sur cette période.</div>',
+    };
+  }
+
+  function draw() {
+    const { start, end, label } = period(mode, ref);
+    const days = [];
+    for (let d = new Date(start); d <= end; d = addDays(d, 1)) days.push(new Date(d));
+    const body = kind === 'temperatures' ? tempsBody(days, label) : cleanBody(days);
     const now = new Date();
     view.innerHTML = `
       <div class="row between no-print" style="flex-wrap:wrap;gap:12px">
         <h1 class="title">Historique</h1>
         <button type="button" class="btn primary" id="print">${icon('download', 20)} Exporter en PDF</button>
+      </div>
+      <div class="tabs no-print" role="tablist">
+        <a href="#" data-kind="temperatures" class="${kind === 'temperatures' ? 'on' : ''}">Températures</a>
+        <a href="#" data-kind="nettoyage" class="${kind === 'nettoyage' ? 'on' : ''}">Nettoyage</a>
       </div>
       <div class="row no-print" style="flex-wrap:wrap;gap:12px">
         <div class="segmented seg3" role="group" aria-label="Période">
@@ -127,22 +186,23 @@ export function renderHistorique(view, { session }) {
       </div>
 
       <div class="print-only print-head">
-        <div><strong style="font-size:16px">K-RAMEN · Relevés de températures</strong><br>29 Rue de Tournai, 59200 Tourcoing</div>
+        <div><strong style="font-size:16px">K-RAMEN · ${esc(body.titre)}</strong><br>29 Rue de Tournai, 59200 Tourcoing</div>
         <div style="text-align:right">Édité le ${esc(fmtFull(now))} par ${esc(session.user.prenom)}</div>
       </div>
 
       <div id="hist-body" class="stack" style="gap:16px">
         <div class="stack" style="gap:4px">
           <h2 style="font-size:20px">${esc(label)}</h2>
-          <span class="small muted">${nb} relevé${nb > 1 ? 's' : ''}${expected ? ` sur ${expected} attendus à ce jour` : ''} · ${outs.length} hors norme. En rouge : hors norme.</span>
+          <span class="small muted">${body.resume}</span>
         </div>
-        ${tables}
-        <section class="card avoid-break"><h2 class="pad" style="font-size:16px;padding-bottom:0">Températures hors norme</h2>${outHtml}</section>
+        ${body.contenu}
         <div class="print-only sign">Visa de la responsable : ______________________________ &nbsp;&nbsp; Date : ____ / ____ / ________</div>
       </div>`;
   }
 
   view.addEventListener('click', (e) => {
+    const k = e.target.closest('[data-kind]');
+    if (k) { e.preventDefault(); if (k.dataset.kind !== kind) { kind = k.dataset.kind; subscribe(); } return; }
     const b = e.target.closest('button');
     if (!b) return;
     if (b.id === 'print') { window.print(); return; }
@@ -157,8 +217,12 @@ export function renderHistorique(view, { session }) {
     appareils = s.docs.map((d) => ({ id: d.id, ...d.data() }));
     draw();
   });
+  const unTa = onSnapshot(collection(db, 'taches'), (s) => {
+    taches = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+    if (kind === 'nettoyage') draw();
+  });
   subscribe();
-  return () => { unApp(); if (unRel) unRel(); };
+  return () => { unApp(); unTa(); if (unRel) unRel(); };
 }
 
 export { TYPES };

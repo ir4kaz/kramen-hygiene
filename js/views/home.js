@@ -4,14 +4,15 @@ import {
   collection, query, where, onSnapshot,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
-  esc, icon, today, longDate, currentMoment, fmtTemp, rangeLabel,
+  esc, icon, today, longDate, currentMoment, fmtTemp, rangeLabel, currentService,
 } from '../util.js';
 
 const TILES = [
   { id: 'temperatures', label: 'Températures', icon: 'thermo' },
-  { id: 'nettoyage', label: 'Nettoyage', icon: 'clean', soon: true },
+  { id: 'nettoyage', label: 'Nettoyage', icon: 'clean' },
   { id: 'reception', label: 'Réception', icon: 'truck', soon: true },
   { id: 'documents', label: 'Documents', icon: 'folder', soon: true },
+  { id: 'historique', label: 'Historique', icon: 'history', wide: true },
 ];
 
 export function renderHome(view, { session }) {
@@ -19,6 +20,9 @@ export function renderHome(view, { session }) {
   const moment = currentMoment();
   let appareils = [];
   let releves = [];
+  let taches = [];
+  let nets = [];
+  const service = currentService();
 
   function draw() {
     const actifs = appareils.filter((a) => a.actif !== false);
@@ -47,12 +51,23 @@ export function renderHome(view, { session }) {
     const dateTxt = longDate();
     const dateCap = dateTxt.charAt(0).toUpperCase() + dateTxt.slice(1);
 
+    // Nettoyage après le service en cours.
+    const tService = taches.filter((t) => t.actif !== false && t.frequence === 'service');
+    const sessNow = nets.find((n) => n.id === `${day}_service-${service}`);
+    const doneClean = tService.filter((t) => sessNow?.items?.[t.id]).length;
+
     const tiles = TILES.map((t) => {
-      const sub = t.id === 'temperatures'
-        ? (reste > 0 ? `${reste} appareil${reste > 1 ? 's' : ''} à relever` : 'Relevé terminé')
-        : 'Bientôt disponible';
-      const hot = t.id === 'temperatures' && reste > 0 ? '<span class="badge hot">À faire</span>' : '';
-      return `<a href="#/${t.id}" class="tile ${t.soon ? 'soon' : ''}">
+      let sub = 'Bientôt disponible';
+      let hot = '';
+      if (t.id === 'temperatures') {
+        sub = reste > 0 ? `${reste} appareil${reste > 1 ? 's' : ''} à relever` : 'Relevé terminé';
+        if (reste > 0) hot = '<span class="badge hot">À faire</span>';
+      } else if (t.id === 'nettoyage') {
+        sub = tService.length ? `Service du ${service} : ${doneClean} / ${tService.length}` : 'Plan à créer';
+      } else if (t.id === 'historique') {
+        sub = 'Relevés, nettoyage et export PDF';
+      }
+      return `<a href="#/${t.id}" class="tile ${t.soon ? 'soon' : ''} ${t.wide ? 'wide' : ''}">
         ${hot}
         <span class="icon">${icon(t.icon)}</span>
         <span class="stack" style="gap:4px"><span class="name">${t.label}</span><span class="small muted">${sub}</span></span>
@@ -83,5 +98,13 @@ export function renderHome(view, { session }) {
     releves = s.docs.map((d) => ({ id: d.id, ...d.data() }));
     draw();
   });
-  return () => { un1(); un2(); };
+  const un3 = onSnapshot(collection(db, 'taches'), (s) => {
+    taches = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+    draw();
+  });
+  const un4 = onSnapshot(query(collection(db, 'nettoyages'), where('date', '==', day)), (s) => {
+    nets = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+    draw();
+  });
+  return () => { un1(); un2(); un3(); un4(); };
 }

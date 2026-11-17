@@ -9,7 +9,7 @@ import {
   query, where, limit, getDocs,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
-  esc, slug, toast, rangeLabel, TYPES, TYPE_ORDER,
+  esc, slug, toast, rangeLabel, TYPES, TYPE_ORDER, ZONES, ZONE_ORDER, FREQS, FREQ_ORDER,
 } from '../util.js';
 
 const num = (v) => {
@@ -29,16 +29,61 @@ async function secondaryAuth() {
 }
 
 export function renderAdmin(view, { sub, session }) {
-  const tab = sub === 'employes' ? 'employes' : 'appareils';
+  const tab = ['employes', 'nettoyage'].includes(sub) ? sub : 'appareils';
   let appareils = [];
   let users = [];
+  let taches = [];
   let editing = null;
+  let editingTask = null;
 
   function tabs() {
     return `<div class="tabs" role="tablist">
       <a href="#/admin/appareils" class="${tab === 'appareils' ? 'on' : ''}">Appareils</a>
+      <a href="#/admin/nettoyage" class="${tab === 'nettoyage' ? 'on' : ''}">Nettoyage</a>
       <a href="#/admin/employes" class="${tab === 'employes' ? 'on' : ''}">Employés</a>
     </div>`;
+  }
+
+  function nettoyageHtml() {
+    const e = taches.find((t) => t.id === editingTask);
+    const zoneOpts = ZONE_ORDER.map((z) => `<option value="${z}" ${(e?.zone || 'bar') === z ? 'selected' : ''}>${ZONES[z]}</option>`).join('');
+    const freqOpts = FREQ_ORDER.map((f) => `<option value="${f}" ${(e?.frequence || 'service') === f ? 'selected' : ''}>${FREQS[f].label}</option>`).join('');
+    const groups = FREQ_ORDER.map((f) => {
+      const list = taches.filter((t) => t.frequence === f)
+        .sort((a, b) => (ZONE_ORDER.indexOf(a.zone) - ZONE_ORDER.indexOf(b.zone)) || ((a.ordre ?? 0) - (b.ordre ?? 0)));
+      if (!list.length) return '';
+      return `<div class="card tablewrap">
+        <h2 class="pad" style="font-size:16px;padding-bottom:4px">${FREQS[f].label}</h2>
+        <table class="table">
+          <thead><tr><th>Tâche</th><th>Zone</th><th>État</th><th></th></tr></thead>
+          <tbody>${list.map((t) => `<tr>
+            <td><strong>${esc(t.nom)}</strong>${t.detail ? `<br><span class="small muted">${esc(t.detail)}</span>` : ''}</td>
+            <td>${esc(ZONES[t.zone] || 'Autre')}</td>
+            <td>${t.actif === false ? '<span class="badge todo">Désactivée</span>' : '<span class="badge ok">Active</span>'}</td>
+            <td style="white-space:nowrap">
+              <button class="btn small" type="button" data-edit-task="${esc(t.id)}">Modifier</button>
+              <button class="btn small" type="button" data-toggle-task="${esc(t.id)}">${t.actif === false ? 'Réactiver' : 'Désactiver'}</button>
+              <button class="btn small" type="button" data-del-task="${esc(t.id)}">Supprimer</button>
+            </td></tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+    }).join('');
+    return `
+    <form class="card pad stack" id="ft" style="gap:14px">
+      <strong>${e ? `Modifier « ${esc(e.nom)} »` : 'Ajouter une tâche de nettoyage'}</strong>
+      <div class="form-grid">
+        <div class="field"><label for="tn">Tâche</label><input id="tn" required value="${esc(e?.nom || '')}" placeholder="ex. Hotte"></div>
+        <div class="field"><label for="tz">Zone</label><select id="tz">${zoneOpts}</select></div>
+        <div class="field"><label for="tf">Quand</label><select id="tf">${freqOpts}</select></div>
+      </div>
+      <div class="field"><label for="td">Détail (facultatif)</label><input id="td" value="${esc(e?.detail || '')}" placeholder="ex. Démonter les filtres, tremper dans le dégraissant"></div>
+      <div class="row" style="flex-wrap:wrap">
+        <button class="btn primary" type="submit">${e ? 'Enregistrer' : 'Ajouter'}</button>
+        ${e ? '<button class="btn" type="button" data-cancel-task>Annuler</button>' : ''}
+      </div>
+    </form>
+    ${groups || '<div class="card pad muted">Aucune tâche. Ouvrez l’écran Nettoyage pour créer le plan de départ, ou ajoutez des tâches ici.</div>'}
+    <p class="small muted" style="margin:0">Supprimer une tâche ne supprime pas l’historique : les nettoyages déjà cochés restent dans l’historique avec leur nom.</p>`;
   }
 
   function appareilsHtml() {
@@ -105,7 +150,8 @@ export function renderAdmin(view, { sub, session }) {
   }
 
   function draw() {
-    view.innerHTML = `<h1 class="title">Admin</h1>${tabs()}${tab === 'appareils' ? appareilsHtml() : employesHtml()}`;
+    const html = tab === 'appareils' ? appareilsHtml() : tab === 'nettoyage' ? nettoyageHtml() : employesHtml();
+    view.innerHTML = `<h1 class="title">Admin</h1>${tabs()}${html}`;
   }
 
   view.addEventListener('click', async (ev) => {
@@ -136,6 +182,17 @@ export function renderAdmin(view, { sub, session }) {
         toast(`Suppression impossible : ${e.message}`, 4500);
         b.disabled = false;
       }
+    } else if (b.dataset.editTask) { editingTask = b.dataset.editTask; draw(); view.querySelector('#tn')?.focus(); }
+    else if (b.hasAttribute('data-cancel-task')) { editingTask = null; draw(); }
+    else if (b.dataset.toggleTask) {
+      const t = taches.find((x) => x.id === b.dataset.toggleTask);
+      updateDoc(doc(db, 'taches', t.id), { actif: t.actif === false }).catch((e) => toast(e.message));
+    } else if (b.dataset.delTask) {
+      const t = taches.find((x) => x.id === b.dataset.delTask);
+      if (t && window.confirm(`Supprimer la tâche « ${t.nom} » ?`)) {
+        deleteDoc(doc(db, 'taches', t.id)).then(() => toast('Tâche supprimée.')).catch((e) => toast(e.message));
+        if (editingTask === t.id) editingTask = null;
+      }
     } else if (b.dataset.toggleUser) {
       const u = users.find((x) => x.id === b.dataset.toggleUser);
       updateDoc(doc(db, 'users', u.id), { actif: u.actif === false }).catch((e) => toast(e.message));
@@ -160,6 +217,20 @@ export function renderAdmin(view, { sub, session }) {
         toast('Appareil ajouté.');
       }
       editing = null;
+      draw();
+    }
+    if (f.id === 'ft') {
+      const data = { nom: f.tn.value.trim(), zone: f.tz.value, frequence: f.tf.value, detail: f.td.value.trim() };
+      if (!data.nom) { toast('Donnez un nom à la tâche.'); return; }
+      if (editingTask) {
+        updateDoc(doc(db, 'taches', editingTask), data).catch((e) => toast(e.message));
+        toast('Tâche modifiée.');
+      } else {
+        addDoc(collection(db, 'taches'), { ...data, actif: true, ordre: taches.length, createdAt: serverTimestamp() })
+          .catch((e) => toast(e.message));
+        toast('Tâche ajoutée.');
+      }
+      editingTask = null;
       draw();
     }
     if (f.id === 'fe') {
@@ -193,5 +264,6 @@ export function renderAdmin(view, { sub, session }) {
   draw();
   const un1 = onSnapshot(collection(db, 'appareils'), (s) => { appareils = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (tab === 'appareils' && !editing) draw(); });
   const un2 = onSnapshot(collection(db, 'users'), (s) => { users = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (tab === 'employes') draw(); });
-  return () => { un1(); un2(); };
+  const un3 = onSnapshot(collection(db, 'taches'), (s) => { taches = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (tab === 'nettoyage' && !editingTask) draw(); });
+  return () => { un1(); un2(); un3(); };
 }

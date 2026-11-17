@@ -43,6 +43,21 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Tâches du plan de nettoyage : lues par tous, gérées par la responsable.
+    match /taches/{id} {
+      allow read: if active();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Séances de nettoyage (cases cochées, remarques).
+    match /nettoyages/{id} {
+      allow read: if active();
+      allow create, update: if active()
+        && request.resource.data.date is string
+        && request.resource.data.seance in ['service', 'jour', 'approfondi'];
+      allow delete: if false;
+    }
+
     match /releves/{id} {
       allow read: if active();
       allow create, update: if active()

@@ -92,3 +92,49 @@ export const TYPES = {
   autre: { label: 'Autres', one: 'Appareil', min: 0, max: 4 },
 };
 export const TYPE_ORDER = ['frigo', 'congel', 'saladette', 'chambre', 'autre'];
+
+// ---------- Nettoyage ----------
+export const ZONES = {
+  bar: 'Bar',
+  cuisine: 'Cuisine',
+  salle: 'Salle',
+  sanitaires: 'Sanitaires',
+  autre: 'Autre',
+};
+export const ZONE_ORDER = ['bar', 'cuisine', 'salle', 'sanitaires', 'autre'];
+
+// Fréquences des tâches et « séances » correspondantes.
+export const FREQS = {
+  service: { label: 'Après chaque service', court: 'Après service' },
+  jour: { label: 'Une fois par jour', court: 'Chaque jour' },
+  approfondi: { label: 'Nettoyage approfondi', court: 'Approfondi' },
+};
+export const FREQ_ORDER = ['service', 'jour', 'approfondi'];
+
+// Avant 16h : service du midi, après : service du soir.
+export const currentService = (d = new Date()) => (d.getHours() < 16 ? 'midi' : 'soir');
+
+// Plan de départ : fiche « nettoyage approfondi » du bar + ajouts de la patronne + entretien quotidien.
+export const SEED_TACHES = [
+  { zone: 'bar', frequence: 'service', nom: 'Surfaces en contact avec les aliments', detail: 'Nettoyer et désinfecter.' },
+  { zone: 'bar', frequence: 'service', nom: 'Matériel utilisé', detail: 'Laver, rincer, sécher et ranger.' },
+  { zone: 'bar', frequence: 'service', nom: 'Points de contact', detail: 'Poignées, interrupteurs, tireuses, caisse.' },
+  { zone: 'bar', frequence: 'service', nom: 'Poubelles', detail: 'Vider et remettre un sac.' },
+  { zone: 'bar', frequence: 'service', nom: 'Sols', detail: 'Balayer et laver.' },
+  { zone: 'sanitaires', frequence: 'service', nom: 'Sanitaires', detail: 'Nettoyer, désinfecter, recharger papier et savon.' },
+  { zone: 'bar', frequence: 'jour', nom: 'Rincer les citrons', detail: '' },
+  { zone: 'bar', frequence: 'jour', nom: 'Désinfecter la menthe', detail: '5 minutes dans le vinaigre.' },
+  { zone: 'bar', frequence: 'jour', nom: 'Machine à glaçons', detail: 'Nettoyer et désinfecter au vinaigre.' },
+  { zone: 'bar', frequence: 'approfondi', nom: 'Bar et comptoirs', detail: 'Dégager les surfaces ; nettoyer dessus, rebords, façades et crédences.' },
+  { zone: 'bar', frequence: 'approfondi', nom: 'Étagères du bar et porte-verres', detail: 'Retirer les objets ; nettoyer tablettes, supports et recoins ; sécher et ranger.' },
+  { zone: 'bar', frequence: 'approfondi', nom: 'Évier, robinetterie et égouttoir', detail: 'Nettoyer bacs, bondes et pourtour ; retirer les dépôts et détartrer si nécessaire.' },
+  { zone: 'bar', frequence: 'approfondi', nom: 'Meubles et rangements sous le bar', detail: 'Vider par zone ; nettoyer fonds, parois, portes et poignées ; trier puis ranger.' },
+  { zone: 'bar', frequence: 'approfondi', nom: 'Appareils du bar', detail: 'Surfaces extérieures et dessous accessible : machine à café, blender, cuiseur à riz.' },
+  { zone: 'bar', frequence: 'approfondi', nom: 'Réfrigérateur à boissons', detail: 'Clayettes, parois, joints, poignées et vitres ; vérifier les dates et ranger.' },
+  { zone: 'bar', frequence: 'approfondi', nom: 'Congélateur coffre', detail: 'Couvercles vitrés, rails, joints et façades. Signaler le givre ; ne pas dégivrer sans accord.' },
+  { zone: 'bar', frequence: 'approfondi', nom: 'Vitrine réfrigérée à garnitures', detail: 'Retirer les bacs ; nettoyer couvercle, supports, surfaces accessibles et extérieur ; sécher.' },
+  { zone: 'bar', frequence: 'approfondi', nom: 'Buffet et zone libre-service', detail: 'Plans, porte-ustensiles, supports de vaisselle, façades et niches de rangement.' },
+  { zone: 'bar', frequence: 'approfondi', nom: 'Étagères à ramen et présentoirs', detail: 'Retirer les paquets ; nettoyer chaque case ; vérifier les dates et remettre en ordre.' },
+  { zone: 'bar', frequence: 'approfondi', nom: 'Poubelles et zone déchets', detail: 'Vider ; nettoyer et désinfecter intérieur, extérieur, couvercles et emplacement.' },
+  { zone: 'bar', frequence: 'approfondi', nom: 'Sols, plinthes et recoins', detail: 'Déplacer les objets légers ; nettoyer sous les meubles, angles et plinthes ; laver le sol.' },
+];
