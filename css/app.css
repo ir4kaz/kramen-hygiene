@@ -94,7 +94,7 @@ h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
   .grid-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
   .grid-top { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-.grid-top { display: grid; gap: 16px; }
+.grid-top { display: grid; gap: 16px; align-items: start; }
 
 .title { font-size: 26px; font-weight: 700; }
 @media (min-width: 900px) { .title { font-size: 30px; } }

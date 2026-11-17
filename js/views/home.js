@@ -29,16 +29,23 @@ export function renderHome(view, { session }) {
     const alerts = releves.filter((r) => r.horsNorme);
     const reste = total - done;
 
+    const conseil = (r) => (r.sens === 'froid'
+      ? 'Vérifier le réglage du thermostat.'
+      : 'Vérifier la porte et refaire un relevé.');
     const alertHtml = alerts.length
-      ? alerts.map((r) => `
-        <div class="alertbox">
+      ? `<div class="alertbox">
           <span class="ic">${icon('alert', 22)}</span>
-          <div class="stack" style="gap:4px;flex:1">
-            <strong>${esc(r.appareilNom)} : ${esc(fmtTemp(r.valeur))}</strong>
-            <span class="muted small">Relevé du ${esc(r.moment)} par ${esc(r.parNom)}. Attendu : ${esc(rangeLabel(r.min, r.max))}. Vérifier la porte et refaire un relevé.</span>
+          <div class="stack" style="gap:10px;flex:1">
+            <strong>${alerts.length} température${alerts.length > 1 ? 's' : ''} hors norme aujourd’hui</strong>
+            ${alerts.map((r) => `<div class="stack" style="gap:2px">
+              <span><strong>${esc(r.appareilNom)} : ${esc(fmtTemp(r.valeur))}</strong> <span class="small muted">(trop ${esc(r.sens || 'chaud')})</span></span>
+              <span class="muted small">Relevé du ${esc(r.moment)} par ${esc(r.parNom)}. Attendu : ${esc(rangeLabel(r.min, r.max))}. ${conseil(r)}</span>
+            </div>`).join('')}
           </div>
-        </div>`).join('')
+        </div>`
       : (done ? `<div class="okbox">${icon('check', 22)} Aucune température hors norme aujourd’hui.</div>` : '');
+    const dateTxt = longDate();
+    const dateCap = dateTxt.charAt(0).toUpperCase() + dateTxt.slice(1);
 
     const tiles = TILES.map((t) => {
       const sub = t.id === 'temperatures'
@@ -55,7 +62,7 @@ export function renderHome(view, { session }) {
     view.innerHTML = `
       <div class="stack" style="gap:4px">
         <h1 class="title">Bonjour ${esc(session.user.prenom)}</h1>
-        <p class="muted" style="margin:0;text-transform:capitalize">${esc(longDate())} · relevé du ${moment}</p>
+        <p class="muted" style="margin:0">${esc(dateCap)} · relevé du ${moment}</p>
       </div>
       <div class="grid-top">
         <section class="card pad stack" aria-label="Avancement" style="gap:10px;justify-content:center">
