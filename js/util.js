@@ -171,7 +171,7 @@ export const CATEGORIES = {
 export const CAT_ORDER = ['frais', 'surgele', 'sec'];
 
 // Compresse une photo : côté max `maxSide` px, JPEG, et vise moins de `maxBytes`.
-export async function compressImage(file, maxSide = 1600, maxBytes = 300 * 1024) {
+export async function compressImage(file, maxSide = 1600, maxBytes = 300 * 1024, q0 = 0.72) {
   const bmp = await createImageBitmap(file).catch(() => null);
   let img = bmp;
   if (!img) {
@@ -180,7 +180,7 @@ export async function compressImage(file, maxSide = 1600, maxBytes = 300 * 1024)
     });
   }
   const w0 = img.width; const h0 = img.height;
-  let side = maxSide; let q = 0.72; let blob;
+  let side = maxSide; let q = q0; let blob;
   for (let tries = 0; tries < 6; tries += 1) {
     const r = Math.min(1, side / Math.max(w0, h0));
     const c = document.createElement('canvas');

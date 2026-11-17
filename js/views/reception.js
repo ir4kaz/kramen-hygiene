@@ -201,7 +201,8 @@ function renderForm(view, session, editId = null) {
     for (const [n, file] of list.entries()) {
       if (state) state.textContent = `Compression de la photo ${n + 1} / ${list.length}…`;
       try {
-        const full = await compressImage(file, 1600, 300 * 1024);
+        // 1280 px, qualité 60 % : un bon de livraison A4 reste parfaitement lisible (~150–200 Ko).
+        const full = await compressImage(file, 1280, 200 * 1024, 0.6);
         const thumb = await compressImage(file, 240, 15 * 1024);
         st.photos.push({ full, thumb, url: bytesToUrl(full) });
       } catch (e) {

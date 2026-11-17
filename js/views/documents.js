@@ -130,7 +130,7 @@ function renderAdd(view, session) {
           st.files.push({ type: 'pdf', nom: file.name, bytes });
         } else {
           // Documents : on garde une bonne résolution pour que le texte reste lisible.
-          const bytes = await compressImage(file, 2200, 550 * 1024);
+          const bytes = await compressImage(file, 1600, 300 * 1024, 0.65);
           st.files.push({ type: 'image', nom: file.name || 'photo.jpg', bytes, url: URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' })) });
         }
       } catch (e) { console.error(e); toast(`Impossible de lire « ${file.name} ».`); }
