@@ -24,7 +24,8 @@ const tempOk = (cat, t) => {
 
 export function renderReception(view, { sub, session }) {
   if (sub === 'nouvelle') return renderForm(view, session);
-  if (sub) return renderDetail(view, sub);
+  if (sub && sub.startsWith('modifier/')) return renderForm(view, session, sub.slice(9));
+  if (sub) return renderDetail(view, sub, session);
   return renderList(view);
 }
 
@@ -85,10 +86,14 @@ function renderList(view) {
 }
 
 // ---------- Nouvelle livraison ----------
-function renderForm(view, session) {
+function renderForm(view, session, editId = null) {
   let day = today();
   let fournisseurs = [];
+  let loaded = !editId;
+  let original = null;
+  const removed = []; // photos existantes retirées pendant la modification
   const st = {
+    existing: [], // { id, thumb, url } : photos déjà enregistrées (modification)
     fournisseurId: '',
     autre: '',
     photos: [], // { full: Uint8Array, thumb: Uint8Array, url }
@@ -101,7 +106,12 @@ function renderForm(view, session) {
   function readInputs() {
     const f = view.querySelector('#rf');
     if (!f) return;
-    st.fournisseurId = f.querySelector('#fo')?.value ?? st.fournisseurId;
+    const fo = f.querySelector('#fo');
+    // Si la liste des fournisseurs n'est pas encore chargée, on garde le choix déjà connu.
+    if (fo) {
+      const known = st.fournisseurId && fo.querySelector(`option[value="${CSS.escape(st.fournisseurId)}"]`);
+      if (fo.value !== '' || known) st.fournisseurId = fo.value;
+    }
     st.autre = f.querySelector('#fa2')?.value ?? st.autre;
     st.remarque = f.querySelector('#rm')?.value ?? st.remarque;
     f.querySelectorAll('[data-prod]').forEach((row) => {
@@ -125,7 +135,7 @@ function renderForm(view, session) {
         ${CAT_ORDER.map((c) => `<button type="button" data-cat="${c}" data-i="${i}" class="${p.cat === c ? 'on' : ''}" aria-pressed="${p.cat === c}">${CATEGORIES[c].label}</button>`).join('')}
       </div>
       ${CATEGORIES[p.cat].max === null ? '' : `<div class="row" style="gap:12px;align-items:flex-end">
-        <div class="field" style="flex:1"><label for="pt${i}">Température à la livraison (°C)</label>
+        <div class="field" style="flex:1"><label for="pt${i}">Température à la livraison (°C, facultatif)</label>
           <input id="pt${i}" data-temp inputmode="decimal" value="${esc(p.temp)}" placeholder="ex. 3 ou -19"></div>
         <span data-badge="${i}" style="padding-bottom:12px">${badge}</span>
       </div>`}
@@ -133,10 +143,11 @@ function renderForm(view, session) {
   }
 
   function draw() {
-    const opts = fournisseurs.filter((f) => f.actif !== false).sort((a, b) => a.nom.localeCompare(b.nom))
+    if (!loaded) { view.innerHTML = '<p class="muted">Chargement…</p>'; return; }
+    const opts = fournisseurs.filter((f) => f.actif !== false || f.id === st.fournisseurId).sort((a, b) => a.nom.localeCompare(b.nom))
       .map((f) => `<option value="${esc(f.id)}" ${st.fournisseurId === f.id ? 'selected' : ''}>${esc(f.nom)}</option>`).join('');
     view.innerHTML = `
-      <div class="row" style="gap:8px"><a href="#/reception" class="iconbtn" aria-label="Retour">${icon('back', 24)}</a><h1 class="title">Nouvelle livraison</h1></div>
+      <div class="row" style="gap:8px"><a href="${editId ? `#/reception/${esc(editId)}` : '#/reception'}" class="iconbtn" aria-label="Retour">${icon('back', 24)}</a><h1 class="title">${editId ? 'Modifier la livraison' : 'Nouvelle livraison'}</h1></div>
       ${dayPickerHtml(day, true)}
       ${pastDayBanner(day)}
       <form id="rf" class="stack" style="gap:16px;max-width:760px" novalidate>
@@ -150,8 +161,8 @@ function renderForm(view, session) {
 
         <section class="card pad stack" style="gap:10px">
           <strong>Photos du bon de livraison et des étiquettes</strong>
-          <div class="photos">${st.photos.map((p, i) => `<div class="ph"><img src="${p.url}" alt="Photo ${i + 1}"><button type="button" class="phdel" data-delphoto="${i}" aria-label="Retirer la photo ${i + 1}">✕</button></div>`).join('')}</div>
-          ${st.photos.length < MAX_PHOTOS ? `<label class="btn" style="align-self:flex-start">${icon('folder', 20)} Prendre une photo<input type="file" accept="image/*" capture="environment" multiple id="ph" hidden></label>` : `<span class="small muted">${MAX_PHOTOS} photos maximum.</span>`}
+          <div class="photos">${st.existing.map((p, i) => `<div class="ph"><img src="${p.url}" alt="Photo enregistrée ${i + 1}"><button type="button" class="phdel" data-delold="${i}" aria-label="Retirer la photo enregistrée ${i + 1}">✕</button></div>`).join('')}${st.photos.map((p, i) => `<div class="ph"><img src="${p.url}" alt="Photo ${i + 1}"><button type="button" class="phdel" data-delphoto="${i}" aria-label="Retirer la photo ${i + 1}">✕</button></div>`).join('')}</div>
+          ${st.photos.length + st.existing.length < MAX_PHOTOS ? `<label class="btn" style="align-self:flex-start">${icon('folder', 20)} Prendre une photo<input type="file" accept="image/*" capture="environment" multiple id="ph" hidden></label>` : `<span class="small muted">${MAX_PHOTOS} photos maximum.</span>`}
           <span class="small muted" id="phstate"></span>
         </section>
 
@@ -171,7 +182,7 @@ function renderForm(view, session) {
           <textarea id="rm" rows="3" class="notearea" placeholder="Ex. : carton de poulet refusé, à 9 °C">${esc(st.remarque)}</textarea>
         </section>
 
-        <button type="submit" class="btn primary block" ${busy ? 'disabled' : ''}>Enregistrer la livraison</button>
+        <button type="submit" class="btn primary block" ${busy ? 'disabled' : ''}>${editId ? 'Enregistrer les modifications' : 'Enregistrer la livraison'}</button>
       </form>`;
   }
 
@@ -186,7 +197,7 @@ function renderForm(view, session) {
 
   async function addPhotos(files) {
     const state = view.querySelector('#phstate');
-    const list = [...files].slice(0, MAX_PHOTOS - st.photos.length);
+    const list = [...files].slice(0, MAX_PHOTOS - st.photos.length - st.existing.length);
     for (const [n, file] of list.entries()) {
       if (state) state.textContent = `Compression de la photo ${n + 1} / ${list.length}…`;
       try {
@@ -209,26 +220,30 @@ function renderForm(view, session) {
     const produits = [];
     for (const p of st.produits) {
       const needT = CATEGORIES[p.cat].max !== null;
-      const t = p.temp === '' ? null : parseTemp(p.temp);
-      if (needT && t === null) { toast(`Indiquez la température (${CATEGORIES[p.cat].label}).`); return; }
+      const t = String(p.temp).trim() === '' ? null : parseTemp(p.temp);
+      if (String(p.temp).trim() !== '' && t === null) { toast('Température illisible : vérifiez le chiffre.'); return; }
       if (t !== null && (t < -40 || t > 40)) { toast('Température bizarre : vérifiez le chiffre.'); return; }
+      // La température est facultative : sans valeur, le produit n'est pas compté comme un problème.
       produits.push({ nom: p.nom.trim(), cat: p.cat, temp: needT ? t : null, ok: tempOk(p.cat, t) !== false });
     }
     const conforme = produits.every((p) => p.ok) && CONTROLES.every((c) => st.controles[c.id]);
     busy = true;
     const b = writeBatch(db);
-    const rRef = doc(collection(db, 'receptions'));
-    const photos = st.photos.map((p) => {
+    const rRef = editId ? doc(db, 'receptions', editId) : doc(collection(db, 'receptions'));
+    removed.forEach((id) => b.delete(doc(db, 'photos', id)));
+    const kept = st.existing.map((p) => ({ id: p.id, thumb: p.thumbBytes }));
+    const added = st.photos.map((p) => {
       const pRef = doc(collection(db, 'photos'));
       b.set(pRef, { data: Bytes.fromUint8Array(p.full), receptionId: rRef.id, date: day, createdAt: serverTimestamp(), par: session.user.uid });
       return { id: pRef.id, thumb: Bytes.fromUint8Array(p.thumb) };
     });
+    const photos = [...kept, ...added];
+    const who = editId
+      ? { par: original.par, parNom: original.parNom, heure: original.heure, at: original.at ?? null, modifiePar: session.user.prenom, modifieLe: Date.now() }
+      : { heure: Date.now(), at: serverTimestamp(), par: session.user.uid, parNom: session.user.prenom };
     b.set(rRef, {
       date: day,
-      heure: Date.now(),
-      at: serverTimestamp(),
-      par: session.user.uid,
-      parNom: session.user.prenom,
+      ...who,
       fournisseurId: fId === '__autre' ? null : fId,
       fournisseurNom: fNom,
       produits,
@@ -236,12 +251,12 @@ function renderForm(view, session) {
       conforme,
       remarque: st.remarque.trim(),
       photos,
-      apresCoup: day !== today(),
+      apresCoup: editId ? (original.apresCoup || false) : day !== today(),
     });
     // Pas d'« await » : hors ligne, l'envoi se fera au retour du réseau.
     b.commit().catch((e) => { console.error(e); toast(`Erreur d’enregistrement : ${e.message}`, 5000); });
     toast(conforme ? 'Livraison enregistrée.' : 'Livraison enregistrée : non conforme, prévenez la responsable.', 4000);
-    location.hash = '#/reception';
+    location.hash = editId ? `#/reception/${editId}` : '#/reception';
   }
 
   view.addEventListener('click', (e) => {
@@ -251,6 +266,7 @@ function renderForm(view, session) {
     else if (t.dataset.cat) { readInputs(); st.produits[Number(t.dataset.i)].cat = t.dataset.cat; draw(); }
     else if (t.hasAttribute('data-addprod')) { readInputs(); st.produits.push({ nom: '', cat: 'frais', temp: '' }); draw(); }
     else if (t.dataset.delprod) { readInputs(); st.produits.splice(Number(t.dataset.delprod), 1); draw(); }
+    else if (t.dataset.delold) { readInputs(); const [p] = st.existing.splice(Number(t.dataset.delold), 1); removed.push(p.id); URL.revokeObjectURL(p.url); draw(); }
     else if (t.dataset.delphoto) { readInputs(); const [p] = st.photos.splice(Number(t.dataset.delphoto), 1); URL.revokeObjectURL(p.url); draw(); }
   });
   view.addEventListener('input', (e) => {
@@ -267,14 +283,31 @@ function renderForm(view, session) {
 
   const un = onSnapshot(collection(db, 'fournisseurs'), (s) => {
     fournisseurs = s.docs.map((d) => ({ id: d.id, ...d.data() }));
-    readInputs(); draw();
+    if (loaded) readInputs();
+    draw();
   });
+  if (editId) {
+    getDoc(doc(db, 'receptions', editId)).then((snap) => {
+      if (!snap.exists()) { view.innerHTML = '<div class="card pad">Livraison introuvable. <a href="#/reception">Retour</a></div>'; return; }
+      original = snap.data();
+      day = original.date;
+      st.fournisseurId = original.fournisseurId || '__autre';
+      st.autre = original.fournisseurId ? '' : (original.fournisseurNom || '');
+      st.produits = (original.produits || []).map((p) => ({ nom: p.nom || '', cat: p.cat || 'frais', temp: p.temp === null || p.temp === undefined ? '' : String(p.temp).replace('.', ',') }));
+      if (!st.produits.length) st.produits = [{ nom: '', cat: 'frais', temp: '' }];
+      st.controles = { ...st.controles, ...(original.controles || {}) };
+      st.remarque = original.remarque || '';
+      st.existing = (original.photos || []).map((p) => ({ id: p.id, thumbBytes: p.thumb, url: bytesToUrl(p.thumb) }));
+      loaded = true;
+      draw();
+    });
+  }
   draw();
-  return () => { un(); st.photos.forEach((p) => URL.revokeObjectURL(p.url)); };
+  return () => { un(); st.photos.forEach((p) => URL.revokeObjectURL(p.url)); st.existing.forEach((p) => URL.revokeObjectURL(p.url)); };
 }
 
 // ---------- Détail d'une livraison ----------
-function renderDetail(view, id) {
+function renderDetail(view, id, session) {
   const urls = [];
   let alive = true;
   view.innerHTML = '<p class="muted">Chargement…</p>';
@@ -289,14 +322,27 @@ function renderDetail(view, id) {
     view.innerHTML = `
       <div class="row" style="gap:8px"><a href="#/reception" class="iconbtn" aria-label="Retour">${icon('back', 24)}</a><h1 class="title">${esc(r.fournisseurNom)}</h1></div>
       <div class="row" style="gap:8px;flex-wrap:wrap">
+        <a class="btn" href="#/reception/modifier/${esc(id)}" style="text-decoration:none;color:inherit">Modifier</a>
+        <button type="button" class="btn" data-delrec style="color:var(--alert)">Supprimer</button>
+      </div>
+      <div class="row" style="gap:8px;flex-wrap:wrap">
         ${r.conforme ? '<span class="badge ok">Conforme</span>' : '<span class="badge alert">Non conforme</span>'}
-        <span class="muted">${esc(shortDate(dateFromKey(r.date)))}${r.heure ? ` à ${esc(hhmm(new Date(r.heure)))}` : ''} · enregistré par ${esc(r.parNom)}</span>
+        <span class="muted">${esc(shortDate(dateFromKey(r.date)))}${r.heure ? ` à ${esc(hhmm(new Date(r.heure)))}` : ''} · enregistré par ${esc(r.parNom)}${r.modifiePar ? ` · modifié par ${esc(r.modifiePar)}` : ''}</span>
       </div>
       <section class="card"><table class="table resp"><thead><tr><th>Produit</th><th>Type</th><th>Température</th></tr></thead><tbody>${prods}</tbody></table></section>
       <section class="card pad stack" style="gap:6px"><strong>Contrôles</strong>
         ${CONTROLES.map((c) => `<span>${r.controles?.[c.id] ? '✓' : '✗'} ${esc(c.label)}</span>`).join('')}</section>
       ${r.remarque ? `<section class="card pad stack" style="gap:6px"><strong>Remarque</strong><span>${esc(r.remarque)}</span></section>` : ''}
       <section class="stack" style="gap:10px"><strong>Photos</strong><div class="photos big" id="phs">${(r.photos || []).map(() => '<div class="ph"><span class="muted small">Chargement…</span></div>').join('') || '<span class="muted">Aucune photo.</span>'}</div></section>`;
+    view.querySelector('[data-delrec]').addEventListener('click', async () => {
+      if (!window.confirm(`Supprimer la livraison « ${r.fournisseurNom} » et ses photos ? C’est définitif.`)) return;
+      const b = writeBatch(db);
+      (r.photos || []).forEach((p) => b.delete(doc(db, 'photos', p.id)));
+      b.delete(doc(db, 'receptions', id));
+      b.commit().catch((e) => { console.error(e); toast(`Suppression impossible : ${e.message}`, 5000); });
+      toast('Livraison supprimée.');
+      location.hash = '#/reception';
+    });
     const box = view.querySelector('#phs');
     for (const [i, p] of (r.photos || []).entries()) {
       try {

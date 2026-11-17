@@ -71,17 +71,17 @@ service cloud.firestore {
       allow create: if active()
         && request.resource.data.par == request.auth.uid
         && request.resource.data.date is string;
-      allow update: if isAdmin();
-      allow delete: if false;
+      // Tout le monde peut corriger ou supprimer une livraison.
+      allow update: if active() && request.resource.data.date is string;
+      allow delete: if active();
     }
 
     // Photos des livraisons (compressées, < 1 Mo).
     match /photos/{id} {
       allow read: if active();
       allow create: if active() && request.resource.data.par == request.auth.uid;
-      // Suppression réservée à la responsable (ménage des photos de plus de 6 mois).
       allow update: if false;
-      allow delete: if isAdmin();
+      allow delete: if active();
     }
 
     match /releves/{id} {
