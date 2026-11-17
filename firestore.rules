@@ -39,7 +39,8 @@ service cloud.firestore {
       allow read: if active();
       allow create: if isAdmin() || setupBatchAdmin();
       allow update: if isAdmin();
-      allow delete: if false;
+      // L'appli ne propose la suppression que pour un appareil sans aucun relevé.
+      allow delete: if isAdmin();
     }
 
     match /releves/{id} {

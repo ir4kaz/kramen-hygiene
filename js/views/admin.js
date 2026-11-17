@@ -5,7 +5,8 @@ import {
   getAuth, createUserWithEmailAndPassword, signOut, inMemoryPersistence, setPersistence,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js';
 import {
-  collection, onSnapshot, doc, addDoc, updateDoc, setDoc, serverTimestamp,
+  collection, onSnapshot, doc, addDoc, updateDoc, setDoc, deleteDoc, serverTimestamp,
+  query, where, limit, getDocs,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
   esc, slug, toast, rangeLabel, TYPES, TYPE_ORDER,
@@ -68,9 +69,11 @@ export function renderAdmin(view, { sub, session }) {
           <td style="white-space:nowrap">
             <button class="btn small" type="button" data-edit="${esc(a.id)}">Modifier</button>
             <button class="btn small" type="button" data-toggle-app="${esc(a.id)}">${a.actif === false ? 'Réactiver' : 'Désactiver'}</button>
+            <button class="btn small" type="button" data-del-app="${esc(a.id)}">Supprimer</button>
           </td></tr>`).join('')}</tbody>
       </table>
-    </div>`;
+    </div>
+    <p class="small muted" style="margin:0">« Supprimer » n’est possible que pour un appareil qui n’a encore aucun relevé (ex. ajouté par erreur). Un appareil avec des relevés se désactive : il disparaît de l’écran Températures mais son historique reste, pour les contrôles.</p>`;
   }
 
   function employesHtml() {
@@ -113,6 +116,26 @@ export function renderAdmin(view, { sub, session }) {
     else if (b.dataset.toggleApp) {
       const a = appareils.find((x) => x.id === b.dataset.toggleApp);
       updateDoc(doc(db, 'appareils', a.id), { actif: a.actif === false }).catch((e) => toast(e.message));
+    } else if (b.dataset.delApp) {
+      const a = appareils.find((x) => x.id === b.dataset.delApp);
+      if (!a) return;
+      b.disabled = true;
+      try {
+        const used = await getDocs(query(collection(db, 'releves'), where('appareilId', '==', a.id), limit(1)));
+        if (!used.empty) {
+          toast(`« ${a.nom} » a déjà des relevés : désactivez-le plutôt.`, 4500);
+          b.disabled = false;
+          return;
+        }
+        if (!window.confirm(`Supprimer définitivement « ${a.nom} » ?`)) { b.disabled = false; return; }
+        await deleteDoc(doc(db, 'appareils', a.id));
+        if (editing === a.id) editing = null;
+        toast('Appareil supprimé.');
+      } catch (e) {
+        console.error(e);
+        toast(`Suppression impossible : ${e.message}`, 4500);
+        b.disabled = false;
+      }
     } else if (b.dataset.toggleUser) {
       const u = users.find((x) => x.id === b.dataset.toggleUser);
       updateDoc(doc(db, 'users', u.id), { actif: u.actif === false }).catch((e) => toast(e.message));

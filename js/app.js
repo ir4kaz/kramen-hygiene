@@ -1,7 +1,7 @@
 // Point d'entrée : connexion, menu et navigation entre les écrans.
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js';
-import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
+import { doc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import { esc, icon, toast } from './util.js';
 import { renderLogin } from './views/login.js';
 import { renderHome } from './views/home.js';
@@ -87,8 +87,29 @@ async function route() {
 
 window.addEventListener('hashchange', route);
 
+// Surveille le profil en direct : un compte désactivé est déconnecté tout de suite,
+// un changement de rôle est pris en compte sans recharger.
+let unwatch = null;
+function watchProfile(uid) {
+  if (unwatch) unwatch();
+  unwatch = onSnapshot(doc(db, 'users', uid), async (snap) => {
+    if (!snap.exists() || !session.user) return;
+    const p = snap.data();
+    if (p.actif === false) {
+      if (unwatch) { unwatch(); unwatch = null; }
+      await signOut(auth);
+      toast('Ce compte a été désactivé. Demandez à la responsable.', 4500);
+      return;
+    }
+    const roleChanged = p.role !== session.user.role;
+    session.user = { uid, ...p };
+    if (roleChanged) route();
+  }, () => { /* hors ligne ou droits retirés : on ignore */ });
+}
+
 onAuthStateChanged(auth, async (fbUser) => {
   if (cleanup) { try { cleanup(); } catch (e) { /* rien */ } cleanup = null; }
+  if (!fbUser && unwatch) { unwatch(); unwatch = null; }
   if (!fbUser) {
     session.user = null;
     renderLogin(app);
@@ -108,6 +129,7 @@ onAuthStateChanged(auth, async (fbUser) => {
     }
     session.user = { uid: fbUser.uid, ...p };
     route();
+    watchProfile(fbUser.uid);
   } catch (err) {
     console.error(err);
     app.innerHTML = `<div class="auth"><div class="card"><strong>Impossible de charger le profil.</strong><span class="muted">${esc(err.message)}</span><button class="btn" onclick="location.reload()">Réessayer</button></div></div>`;
@@ -119,5 +141,5 @@ export async function reloadProfile() {
   const u = auth.currentUser;
   if (!u) return;
   const snap = await getDoc(doc(db, 'users', u.uid));
-  if (snap.exists()) { session.user = { uid: u.uid, ...snap.data() }; location.hash = '#/accueil'; route(); }
+  if (snap.exists()) { session.user = { uid: u.uid, ...snap.data() }; location.hash = '#/accueil'; route(); watchProfile(u.uid); }
 }
