@@ -106,7 +106,7 @@ export function renderTemperatures(view, { session }) {
           <button type="button" data-moment="soir" class="${moment === 'soir' ? 'on' : ''}" aria-pressed="${moment === 'soir'}">Soir</button>
         </div>
       </div>
-      ${dayPickerHtml(day, isAdmin)}
+      ${dayPickerHtml(day, true)}
       ${pastDayBanner(day)}
       <div class="temp-layout">
         <div class="temp-groups">${groupsHtml()}</div>

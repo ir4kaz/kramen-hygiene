@@ -97,7 +97,7 @@ export function renderNettoyage(view, { session }) {
         <span class="small muted">${esc(shortDate(dateFromKey(day)))}</span>
         <span id="savestate">${saveState()}</span>
       </div>
-      ${dayPickerHtml(day, isAdmin)}
+      ${dayPickerHtml(day, true)}
       ${pastDayBanner(day)}
       <div class="row" style="flex-wrap:wrap;gap:12px">
         <div class="segmented seg3" role="group" aria-label="Type de nettoyage">${seg}</div>
