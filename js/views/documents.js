@@ -5,7 +5,7 @@ import {
   collection, query, where, onSnapshot, doc, getDoc, getDocs, writeBatch, serverTimestamp, Bytes, updateDoc,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
-  esc, icon, toast, shortDate, today, dateFromKey, compressImage, DOC_CATS, DOC_ORDER, fmtSize,
+  esc, icon, toast, shortDate, today, dateFromKey, compressImage, DOC_CATS, DOC_ORDER, fmtSize, hhmm, bytesToUrl,
 } from '../util.js';
 
 const CHUNK = 900 * 1024;
@@ -23,7 +23,11 @@ function renderList(view, session) {
   const isAdmin = session.user.role === 'admin';
   let docs = [];
   let fournisseurs = [];
+  let receptions = [];
   let filtre = '';
+  let showAllBons = false;
+  const thumbs = [];
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
   function draw() {
     const f = filtre.trim().toLowerCase();
@@ -55,6 +59,43 @@ function renderList(view, session) {
         ${isAdmin ? '<a href="#/admin/fournisseurs" class="small">Gérer les fournisseurs dans Admin</a>' : ''}
       </section>` : '';
 
+    // Bons de livraison : les photos prises dans Réception (pas de copie, on renvoie vers la livraison).
+    thumbs.splice(0).forEach((u) => URL.revokeObjectURL(u));
+    const bons = receptions.filter((r) => r.photos?.length && (!f || (r.fournisseurNom || '').toLowerCase().includes(f) || 'bon de livraison'.includes(f)))
+      .sort((a, b) => (b.date.localeCompare(a.date)) || ((b.heure || 0) - (a.heure || 0)));
+    const bonsVis = showAllBons ? bons : bons.slice(0, 5);
+    const bHtml = bons.length ? `<section class="stack" style="gap:8px">
+        <h2 style="font-size:15px">Bons de livraison <span class="muted small">(${bons.length})</span></h2>
+        <div class="card list">${bonsVis.map((r) => {
+          const u = bytesToUrl(r.photos[0].thumb); thumbs.push(u);
+          return `<a class="docrow" href="#/reception/${esc(r.id)}">
+            <img src="${u}" alt="" class="minithumb">
+            <span class="rinfo"><strong>${esc(r.fournisseurNom || 'Livraison')}</strong>
+              <span class="small muted">${esc(shortDate(dateFromKey(r.date)))}${r.heure ? ` · ${esc(hhmm(new Date(r.heure)))}` : ''} · ${r.photos.length} photo${r.photos.length > 1 ? 's' : ''}</span></span>
+            ${r.conforme === false ? '<span class="badge alert">Non conforme</span>' : ''}
+          </a>`;
+        }).join('')}</div>
+        ${bons.length > 5 ? `<button type="button" class="btn small" data-morebons style="align-self:flex-start">${showAllBons ? 'Voir moins' : `Voir les ${bons.length} bons`}</button>` : ''}
+      </section>` : '';
+
+    // Historiques mensuels : liens vers l'Historique (toujours à jour, export PDF en un clic).
+    const now = new Date();
+    const months = [0, 1, 2].map((i) => new Date(now.getFullYear(), now.getMonth() - i, 1));
+    const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    const hRows = months.flatMap((d) => [
+      ['temperatures', 'Relevés de températures'], ['nettoyage', 'Plan de nettoyage'], ['reception', 'Réception des marchandises'],
+    ].map(([k, l]) => ({ k, l, d })))
+      .filter((x) => !f || x.l.toLowerCase().includes(f) || 'historique'.includes(f) || MOIS[x.d.getMonth()].includes(f));
+    const hHtml = hRows.length ? `<section class="stack" style="gap:8px">
+        <h2 style="font-size:15px">Historiques (relevés, nettoyage, livraisons)</h2>
+        <div class="card list">${hRows.map((x) => `<a class="docrow" href="#/historique/${x.k}/mois/${key(x.d)}">
+          <span class="docic">${icon('history', 22)}</span>
+          <span class="rinfo"><strong>${esc(x.l)} — ${MOIS[x.d.getMonth()]} ${x.d.getFullYear()}</strong>
+            <span class="small muted">Ouvrir, puis « Exporter en PDF »</span></span>
+        </a>`).join('')}</div>
+        <a href="#/historique" class="small">Voir un autre mois dans l’Historique</a>
+      </section>` : '';
+
     const keepFocus = document.activeElement?.id === 'q';
     view.innerHTML = `
       <div class="row between" style="flex-wrap:wrap;gap:12px">
@@ -62,19 +103,27 @@ function renderList(view, session) {
         <a class="btn primary" href="#/documents/ajouter" style="text-decoration:none">+ Ajouter un document</a>
       </div>
       <input id="q" class="select-lg" type="search" placeholder="Rechercher un document ou un fournisseur" value="${esc(filtre)}" aria-label="Rechercher">
-      ${sections || (f ? '' : '<div class="card pad muted">Aucun document pour l’instant. Ajoutez le PMS, les fiches techniques des produits d’entretien, les notices…</div>')}
+      ${sections || (f ? '' : '<div class="card pad muted">Aucun document ajouté pour l’instant. Ajoutez le PMS, les fiches techniques des produits d’entretien, les notices…</div>')}
+      ${bHtml}
+      ${hHtml}
       ${fHtml}
-      ${f && !sections && !fHtml ? '<div class="card pad muted">Aucun résultat.</div>' : ''}`;
+      ${f && !sections && !fHtml && !bHtml && !hHtml ? '<div class="card pad muted">Aucun résultat.</div>' : ''}`;
     if (keepFocus) { const q = view.querySelector('#q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
   }
 
   view.addEventListener('input', (e) => { if (e.target.id === 'q') { filtre = e.target.value; draw(); } });
+  view.addEventListener('click', (e) => { if (e.target.closest('[data-morebons]')) { showAllBons = !showAllBons; draw(); } });
   // Les employés ne reçoivent que les documents non réservés à la responsable.
   const q = isAdmin ? collection(db, 'documents') : query(collection(db, 'documents'), where('prive', '==', false));
   const un1 = onSnapshot(q, (s) => { docs = s.docs.map((d) => ({ id: d.id, ...d.data() })); draw(); });
   const un2 = onSnapshot(collection(db, 'fournisseurs'), (s) => { fournisseurs = s.docs.map((d) => ({ id: d.id, ...d.data() })); draw(); });
+  // Bons de livraison des 6 derniers mois.
+  const since = new Date(); since.setMonth(since.getMonth() - 6);
+  const un3 = onSnapshot(query(collection(db, 'receptions'), where('date', '>=', today(since))), (s) => {
+    receptions = s.docs.map((d) => ({ id: d.id, ...d.data() })); draw();
+  });
   draw();
-  return () => { un1(); un2(); };
+  return () => { un1(); un2(); un3(); thumbs.forEach((u) => URL.revokeObjectURL(u)); };
 }
 
 // ---------- Ajout ----------

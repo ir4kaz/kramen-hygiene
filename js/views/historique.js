@@ -38,11 +38,18 @@ function shift(mode, ref, dir) {
   return toKey(new Date(d.getFullYear(), d.getMonth() + dir, 1));
 }
 
-export function renderHistorique(view, { session }) {
+export function renderHistorique(view, { session, sub }) {
   // Sur téléphone on démarre sur « Jour » (tableau étroit), sur tablette/PC sur « Semaine ».
   let mode = window.matchMedia('(max-width: 899px)').matches ? 'jour' : 'semaine';
   let ref = today();
-  let kind = 'temperatures'; // ou 'nettoyage'
+  let kind = 'temperatures'; // ou 'nettoyage', 'reception'
+  // Lien direct possible : #/historique/<type>/<jour|semaine|mois>/<AAAA-MM-JJ> (utilisé par Documents).
+  if (sub) {
+    const [k, m, d] = sub.split('/');
+    if (['temperatures', 'nettoyage', 'reception'].includes(k)) kind = k;
+    if (['jour', 'semaine', 'mois'].includes(m)) mode = m;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d || '')) ref = d;
+  }
   let appareils = [];
   let taches = [];
   let releves = [];
