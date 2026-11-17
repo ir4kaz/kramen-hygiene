@@ -160,3 +160,40 @@ export function pastDayBanner(day) {
   const txt = longDate(dateFromKey(day));
   return `<div class="warnbox">Vous complétez le <strong>${esc(txt)}</strong> (jour passé).</div>`;
 }
+
+// ---------- Réception marchandise ----------
+// Températures maximales à la livraison (valeurs courantes du guide d'hygiène, modifiables plus tard).
+export const CATEGORIES = {
+  frais: { label: 'Frais', max: 4, aide: '4 °C maximum' },
+  surgele: { label: 'Surgelé', max: -18, aide: '−18 °C ou moins' },
+  sec: { label: 'Sec', max: null, aide: 'pas de température' },
+};
+export const CAT_ORDER = ['frais', 'surgele', 'sec'];
+
+// Compresse une photo : côté max `maxSide` px, JPEG, et vise moins de `maxBytes`.
+export async function compressImage(file, maxSide = 1600, maxBytes = 300 * 1024) {
+  const bmp = await createImageBitmap(file).catch(() => null);
+  let img = bmp;
+  if (!img) {
+    img = await new Promise((res, rej) => {
+      const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file);
+    });
+  }
+  const w0 = img.width; const h0 = img.height;
+  let side = maxSide; let q = 0.72; let blob;
+  for (let tries = 0; tries < 6; tries += 1) {
+    const r = Math.min(1, side / Math.max(w0, h0));
+    const c = document.createElement('canvas');
+    c.width = Math.round(w0 * r); c.height = Math.round(h0 * r);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    blob = await new Promise((res) => c.toBlob(res, 'image/jpeg', q));
+    if (blob.size <= maxBytes) break;
+    if (q > 0.5) q -= 0.1; else side = Math.round(side * 0.8);
+  }
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+export function bytesToUrl(bytes) {
+  const u8 = bytes && typeof bytes.toUint8Array === 'function' ? bytes.toUint8Array() : bytes;
+  return u8 ? URL.createObjectURL(new Blob([u8], { type: 'image/jpeg' })) : '';
+}

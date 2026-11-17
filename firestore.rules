@@ -58,6 +58,32 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Fournisseurs : lus par tous, gérés par la responsable.
+    match /fournisseurs/{id} {
+      allow read: if active();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Livraisons reçues.
+    match /receptions/{id} {
+      allow read: if active();
+      allow create: if active()
+        && request.resource.data.par == request.auth.uid
+        && request.resource.data.date is string;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Photos des livraisons (compressées, < 1 Mo).
+    match /photos/{id} {
+      allow read: if active();
+      allow create: if active() && request.resource.data.par == request.auth.uid;
+      // Suppression réservée à la responsable (ménage des photos de plus de 6 mois).
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
     match /releves/{id} {
       allow read: if active();
       allow create, update: if active()

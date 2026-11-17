@@ -11,6 +11,7 @@ import { renderSoon } from './views/soon.js';
 import { renderHistorique } from './views/historique.js';
 import { renderAide } from './views/aide.js';
 import { renderNettoyage } from './views/nettoyage.js';
+import { renderReception } from './views/reception.js';
 
 const app = document.getElementById('app');
 
@@ -28,12 +29,13 @@ const NAV = [
   { id: 'aide', label: 'Aide', icon: 'help' },
 ];
 // Sur téléphone, le menu du bas garde l'essentiel.
-const BOTTOM = ['accueil', 'temperatures', 'nettoyage', 'historique', 'admin'];
+const BOTTOM = ['accueil', 'temperatures', 'nettoyage', 'reception', 'historique'];
 
 const ROUTES = {
   accueil: renderHome,
   temperatures: renderTemperatures,
   nettoyage: renderNettoyage,
+  reception: renderReception,
   historique: renderHistorique,
   aide: renderAide,
   admin: renderAdmin,
@@ -64,7 +66,7 @@ function layout(active) {
     </nav>
     <header class="topbar">
       <div class="brandbox"><span class="brand">K-RAMEN</span><span class="muted small">Hygiène</span></div>
-      <div class="row" style="gap:4px"><a class="iconbtn" href="#/aide" aria-label="Aide">${icon('help', 22)}</a><button class="iconbtn" id="logout" type="button" aria-label="Se déconnecter">${icon('logout', 22)}</button></div>
+      <div class="row" style="gap:4px">${isAdmin ? `<a class="iconbtn" href="#/admin" aria-label="Admin">${icon('admin', 22)}</a>` : ''}<a class="iconbtn" href="#/aide" aria-label="Aide">${icon('help', 22)}</a><button class="iconbtn" id="logout" type="button" aria-label="Se déconnecter">${icon('logout', 22)}</button></div>
     </header>
     <main class="content" id="view"></main>
     <nav class="bottomnav" aria-label="Menu">${bottom}</nav>

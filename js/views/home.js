@@ -10,7 +10,7 @@ import {
 const TILES = [
   { id: 'temperatures', label: 'Températures', icon: 'thermo' },
   { id: 'nettoyage', label: 'Nettoyage', icon: 'clean' },
-  { id: 'reception', label: 'Réception', icon: 'truck', soon: true },
+  { id: 'reception', label: 'Réception', icon: 'truck' },
   { id: 'documents', label: 'Documents', icon: 'folder', soon: true },
   { id: 'historique', label: 'Historique', icon: 'history', wide: true },
 ];
@@ -22,6 +22,7 @@ export function renderHome(view, { session }) {
   let releves = [];
   let taches = [];
   let nets = [];
+  let recs = [];
   const service = currentService();
 
   function draw() {
@@ -64,8 +65,11 @@ export function renderHome(view, { session }) {
         if (reste > 0) hot = '<span class="badge hot">À faire</span>';
       } else if (t.id === 'nettoyage') {
         sub = tService.length ? `Service du ${service} : ${doneClean} / ${tService.length}` : 'Plan à créer';
+      } else if (t.id === 'reception') {
+        const nc = recs.filter((r) => !r.conforme).length;
+        sub = recs.length ? `${recs.length} livraison${recs.length > 1 ? 's' : ''} aujourd’hui${nc ? ` · ${nc} non conforme${nc > 1 ? 's' : ''}` : ''}` : 'Aucune livraison aujourd’hui';
       } else if (t.id === 'historique') {
-        sub = 'Relevés, nettoyage et export PDF';
+        sub = 'Relevés, nettoyage, livraisons et PDF';
       }
       return `<a href="#/${t.id}" class="tile ${t.soon ? 'soon' : ''} ${t.wide ? 'wide' : ''}">
         ${hot}
@@ -106,5 +110,9 @@ export function renderHome(view, { session }) {
     nets = s.docs.map((d) => ({ id: d.id, ...d.data() }));
     draw();
   });
-  return () => { un1(); un2(); un3(); un4(); };
+  const un5 = onSnapshot(query(collection(db, 'receptions'), where('date', '==', day)), (s) => {
+    recs = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+    draw();
+  });
+  return () => { un1(); un2(); un3(); un4(); un5(); };
 }

@@ -29,19 +29,55 @@ async function secondaryAuth() {
 }
 
 export function renderAdmin(view, { sub, session }) {
-  const tab = ['employes', 'nettoyage'].includes(sub) ? sub : 'appareils';
+  const tab = ['employes', 'nettoyage', 'fournisseurs'].includes(sub) ? sub : 'appareils';
   let appareils = [];
   let users = [];
   let taches = [];
   let editing = null;
   let editingTask = null;
+  let fournisseurs = [];
+  let editingF = null;
 
   function tabs() {
     return `<div class="tabs" role="tablist">
       <a href="#/admin/appareils" class="${tab === 'appareils' ? 'on' : ''}">Appareils</a>
       <a href="#/admin/nettoyage" class="${tab === 'nettoyage' ? 'on' : ''}">Nettoyage</a>
+      <a href="#/admin/fournisseurs" class="${tab === 'fournisseurs' ? 'on' : ''}">Fournisseurs</a>
       <a href="#/admin/employes" class="${tab === 'employes' ? 'on' : ''}">Employés</a>
     </div>`;
+  }
+
+  function fournisseursHtml() {
+    const e = fournisseurs.find((f) => f.id === editingF);
+    const list = [...fournisseurs].sort((a, b) => a.nom.localeCompare(b.nom));
+    return `
+    <form class="card pad stack" id="ff" style="gap:14px">
+      <strong>${e ? `Modifier « ${esc(e.nom)} »` : 'Ajouter un fournisseur'}</strong>
+      <div class="form-grid">
+        <div class="field"><label for="fn">Nom</label><input id="fn" required value="${esc(e?.nom || '')}" placeholder="ex. Metro"></div>
+        <div class="field"><label for="ftel">Téléphone</label><input id="ftel" type="tel" value="${esc(e?.tel || '')}"></div>
+        <div class="field"><label for="fmail">E-mail</label><input id="fmail" type="email" value="${esc(e?.email || '')}"></div>
+      </div>
+      <div class="field"><label for="fliv">Ce qu’il livre (facultatif)</label><input id="fliv" value="${esc(e?.livre || '')}" placeholder="ex. Viandes, légumes, produits coréens"></div>
+      <div class="row" style="flex-wrap:wrap">
+        <button class="btn primary" type="submit">${e ? 'Enregistrer' : 'Ajouter'}</button>
+        ${e ? '<button class="btn" type="button" data-cancel-f>Annuler</button>' : ''}
+      </div>
+    </form>
+    <div class="card tablewrap">
+      <table class="table">
+        <thead><tr><th>Fournisseur</th><th>Contact</th><th>État</th><th></th></tr></thead>
+        <tbody>${list.map((f) => `<tr>
+          <td><strong>${esc(f.nom)}</strong>${f.livre ? `<br><span class="small muted">${esc(f.livre)}</span>` : ''}</td>
+          <td>${f.tel ? `<a href="tel:${esc(f.tel)}">${esc(f.tel)}</a>` : ''}${f.tel && f.email ? '<br>' : ''}${f.email ? `<a href="mailto:${esc(f.email)}">${esc(f.email)}</a>` : ''}</td>
+          <td>${f.actif === false ? '<span class="badge todo">Désactivé</span>' : '<span class="badge ok">Actif</span>'}</td>
+          <td style="white-space:nowrap">
+            <button class="btn small" type="button" data-edit-f="${esc(f.id)}">Modifier</button>
+            <button class="btn small" type="button" data-toggle-f="${esc(f.id)}">${f.actif === false ? 'Réactiver' : 'Désactiver'}</button>
+          </td></tr>`).join('') || '<tr><td colspan="4" class="muted">Aucun fournisseur pour l’instant.</td></tr>'}</tbody>
+      </table>
+    </div>
+    <p class="small muted" style="margin:0">Les fournisseurs apparaissent dans la liste de l’écran Réception. Un fournisseur désactivé n’y apparaît plus, mais ses anciennes livraisons restent.</p>`;
   }
 
   function nettoyageHtml() {
@@ -150,7 +186,7 @@ export function renderAdmin(view, { sub, session }) {
   }
 
   function draw() {
-    const html = tab === 'appareils' ? appareilsHtml() : tab === 'nettoyage' ? nettoyageHtml() : employesHtml();
+    const html = tab === 'appareils' ? appareilsHtml() : tab === 'nettoyage' ? nettoyageHtml() : tab === 'fournisseurs' ? fournisseursHtml() : employesHtml();
     view.innerHTML = `<h1 class="title">Admin</h1>${tabs()}${html}`;
   }
 
@@ -182,6 +218,11 @@ export function renderAdmin(view, { sub, session }) {
         toast(`Suppression impossible : ${e.message}`, 4500);
         b.disabled = false;
       }
+    } else if (b.dataset.editF) { editingF = b.dataset.editF; draw(); view.querySelector('#fn')?.focus(); }
+    else if (b.hasAttribute('data-cancel-f')) { editingF = null; draw(); }
+    else if (b.dataset.toggleF) {
+      const f = fournisseurs.find((x) => x.id === b.dataset.toggleF);
+      updateDoc(doc(db, 'fournisseurs', f.id), { actif: f.actif === false }).catch((e) => toast(e.message));
     } else if (b.dataset.editTask) { editingTask = b.dataset.editTask; draw(); view.querySelector('#tn')?.focus(); }
     else if (b.hasAttribute('data-cancel-task')) { editingTask = null; draw(); }
     else if (b.dataset.toggleTask) {
@@ -217,6 +258,19 @@ export function renderAdmin(view, { sub, session }) {
         toast('Appareil ajouté.');
       }
       editing = null;
+      draw();
+    }
+    if (f.id === 'ff') {
+      const data = { nom: f.fn.value.trim(), tel: f.ftel.value.trim(), email: f.fmail.value.trim(), livre: f.fliv.value.trim() };
+      if (!data.nom) { toast('Donnez un nom au fournisseur.'); return; }
+      if (editingF) {
+        updateDoc(doc(db, 'fournisseurs', editingF), data).catch((e) => toast(e.message));
+        toast('Fournisseur modifié.');
+      } else {
+        addDoc(collection(db, 'fournisseurs'), { ...data, actif: true, createdAt: serverTimestamp() }).catch((e) => toast(e.message));
+        toast('Fournisseur ajouté.');
+      }
+      editingF = null;
       draw();
     }
     if (f.id === 'ft') {
@@ -265,5 +319,6 @@ export function renderAdmin(view, { sub, session }) {
   const un1 = onSnapshot(collection(db, 'appareils'), (s) => { appareils = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (tab === 'appareils' && !editing) draw(); });
   const un2 = onSnapshot(collection(db, 'users'), (s) => { users = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (tab === 'employes') draw(); });
   const un3 = onSnapshot(collection(db, 'taches'), (s) => { taches = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (tab === 'nettoyage' && !editingTask) draw(); });
-  return () => { un1(); un2(); un3(); };
+  const un4 = onSnapshot(collection(db, 'fournisseurs'), (s) => { fournisseurs = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (tab === 'fournisseurs' && !editingF) draw(); });
+  return () => { un1(); un2(); un3(); un4(); };
 }

@@ -4,7 +4,7 @@ import {
   collection, query, where, onSnapshot,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
-  esc, icon, today, fmtTemp, rangeLabel, hhmm, TYPES, TYPE_ORDER, FREQS,
+  esc, icon, today, fmtTemp, rangeLabel, hhmm, TYPES, TYPE_ORDER, FREQS, CATEGORIES,
 } from '../util.js';
 
 const p2 = (n) => String(n).padStart(2, '0');
@@ -47,19 +47,20 @@ export function renderHistorique(view, { session }) {
   let taches = [];
   let releves = [];
   let nets = [];
+  let recs = [];
   let unRel = null;
 
   function subscribe() {
     if (unRel) unRel();
     const { start, end } = period(mode, ref);
-    releves = []; nets = [];
+    releves = []; nets = []; recs = [];
     draw();
-    const coll = kind === 'temperatures' ? 'releves' : 'nettoyages';
+    const coll = { temperatures: 'releves', nettoyage: 'nettoyages', reception: 'receptions' }[kind];
     unRel = onSnapshot(
       query(collection(db, coll), where('date', '>=', toKey(start)), where('date', '<=', toKey(end))),
       (s) => {
         const rows = s.docs.map((d) => ({ id: d.id, ...d.data() }));
-        if (kind === 'temperatures') releves = rows; else nets = rows;
+        if (kind === 'temperatures') releves = rows; else if (kind === 'nettoyage') nets = rows; else recs = rows;
         draw();
       },
       (e) => { console.error(e); const b = view.querySelector('#hist-body'); if (b) b.innerHTML = `<div class="alertbox">${esc(e.message)}</div>`; },
@@ -159,11 +160,39 @@ export function renderHistorique(view, { session }) {
     };
   }
 
+  function recBody() {
+    const list = [...recs].sort((a, b) => (a.date.localeCompare(b.date)) || ((a.heure || 0) - (b.heure || 0)));
+    const nc = list.filter((r) => !r.conforme).length;
+    const rows = list.map((r) => {
+      const prods = (r.produits || []).map((p) => {
+        const t = p.temp === null || p.temp === undefined ? '' : ` <span class="${p.ok ? '' : 'txt-alert'}">${esc(fmtTemp(p.temp))}</span>`;
+        return `${esc(p.nom || CATEGORIES[p.cat]?.label || '')}${t}`;
+      }).join('<br>');
+      const ctrl = Object.values(r.controles || {}).every(Boolean) ? 'OK' : '<span class="txt-alert">Problème</span>';
+      return `<tr>
+        <td data-label="Date">${esc(fmtDay(fromKey(r.date)))}${r.heure ? ` · ${esc(hhmm(new Date(r.heure)))}` : ''}</td>
+        <td data-label="Fournisseur"><a href="#/reception/${esc(r.id)}">${esc(r.fournisseurNom)}</a></td>
+        <td data-label="Produits">${prods || '—'}</td>
+        <td data-label="Contrôles">${ctrl}</td>
+        <td data-label="Résultat">${r.conforme ? '<span class="badge ok">Conforme</span>' : '<span class="badge alert">Non conforme</span>'}</td>
+        <td data-label="Par">${esc(r.parNom)}</td>
+        <td data-label="Remarque">${esc(r.remarque || '')}</td></tr>`;
+    }).join('');
+    return {
+      titre: 'Réception des marchandises',
+      resume: `${list.length} livraison${list.length > 1 ? 's' : ''} · ${nc} non conforme${nc > 1 ? 's' : ''}. Les photos sont visibles dans l’appli (écran Réception).`,
+      contenu: rows ? `<section class="card tablewrap"><table class="table resp">
+          <thead><tr><th>Date</th><th>Fournisseur</th><th>Produits et températures</th><th>Contrôles</th><th>Résultat</th><th>Par</th><th>Remarque</th></tr></thead>
+          <tbody>${rows}</tbody></table></section>`
+        : '<div class="card pad muted">Aucune livraison sur cette période.</div>',
+    };
+  }
+
   function draw() {
     const { start, end, label } = period(mode, ref);
     const days = [];
     for (let d = new Date(start); d <= end; d = addDays(d, 1)) days.push(new Date(d));
-    const body = kind === 'temperatures' ? tempsBody(days, label) : cleanBody(days);
+    const body = kind === 'temperatures' ? tempsBody(days, label) : kind === 'nettoyage' ? cleanBody(days) : recBody();
     const now = new Date();
     view.innerHTML = `
       <div class="row between no-print" style="flex-wrap:wrap;gap:12px">
@@ -173,6 +202,7 @@ export function renderHistorique(view, { session }) {
       <div class="tabs no-print" role="tablist">
         <a href="#" data-kind="temperatures" class="${kind === 'temperatures' ? 'on' : ''}">Températures</a>
         <a href="#" data-kind="nettoyage" class="${kind === 'nettoyage' ? 'on' : ''}">Nettoyage</a>
+        <a href="#" data-kind="reception" class="${kind === 'reception' ? 'on' : ''}">Réception</a>
       </div>
       <div class="row no-print" style="flex-wrap:wrap;gap:12px">
         <div class="segmented seg3" role="group" aria-label="Période">
