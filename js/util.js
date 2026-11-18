@@ -11,6 +11,7 @@ const PATHS = {
   file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h6"/>',
   camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/>',
   snow: '<path d="M12 2v20"/><path d="M4.5 6.5l15 11"/><path d="M19.5 6.5l-15 11"/><path d="M9 3.5l3 2.5 3-2.5"/><path d="M9 20.5l3-2.5 3 2.5"/>',
+  bag: '<path d="M8 7c-2 2-3 5.5-3 8.5A4.5 4.5 0 0 0 9.5 20h5a4.5 4.5 0 0 0 4.5-4.5c0-3-1-6.5-3-8.5"/><path d="M8 7h8"/><path d="M8 7 5.5 3.5"/><path d="M16 7l2.5-3.5"/><path d="M10 7l-.5-3"/><path d="M14 7l.5-3"/>',
   pot: '<path d="M4 10h16v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4Z"/><path d="M2 10h20"/><path d="M9 6c0-1 1-1.5 1-2.5"/><path d="M14 6c0-1 1-1.5 1-2.5"/>',
   open: '<path d="M7 8h10l-1 13H8Z"/><path d="M6 8l1-3h10l1 3"/><path d="M10 3.5l4-1.5"/>',
   folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
