@@ -6,7 +6,7 @@ import {
   collection, query, where, onSnapshot,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
-  esc, icon, today, longDate, shortDate, dateFromKey, ZONES, currentMoment, fmtTemp, rangeLabel, currentService, daysUntil,
+  esc, icon, today, longDate, conseilHorsNorme, shortDate, dateFromKey, ZONES, currentMoment, fmtTemp, rangeLabel, currentService, daysUntil,
 } from '../util.js';
 
 const TILES = [
@@ -55,9 +55,7 @@ export function renderHome(view, { session }) {
         <div class="stack" style="gap:2px"><strong>Le relevé du ${m} n’a pas été fait</strong>
         <span class="small muted">${n} / ${total} appareils relevés. Touchez ici pour le compléter.</span></div></a>`).join('');
 
-    const conseil = (r) => (r.sens === 'froid'
-      ? 'Vérifier le réglage et prévenir la responsable.'
-      : 'Déplacer les produits et prévenir la responsable.');
+    const conseil = (r) => conseilHorsNorme(r.sens);
     const alertHtml = alerts.length
       ? `<div class="alertbox">
           <span class="ic">${icon('alert', 22)}</span>

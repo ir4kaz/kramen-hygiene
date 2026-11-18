@@ -4,7 +4,7 @@ import {
   collection, query, where, onSnapshot, doc, setDoc, serverTimestamp, arrayUnion,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
-  esc, icon, today, shortDate, currentMoment, fmtTemp, parseTemp, rangeLabel, isOut, toast,
+  esc, icon, today, shortDate, currentMoment, fmtTemp, parseTemp, rangeLabel, isOut, toast, conseilHorsNorme,
   dayPickerHtml, pastDayBanner, dateFromKey,
   TYPES, TYPE_ORDER,
 } from '../util.js';
@@ -90,6 +90,17 @@ export function renderTemperatures(view, { session }) {
     return `<span class="savestate ok">${icon('check', 16)} Enregistré automatiquement</span>`;
   }
 
+  // Encadré rouge qui reste affiché tant qu'un appareil du relevé est hors norme.
+  function horsNormeHtml(map, list) {
+    const outs = list.map((a) => [a, map[a.id]]).filter(([a, r]) => r && isOut(r.valeur, a.min, a.max));
+    if (!outs.length) return '';
+    return `<div class="alertbox"><span class="ic">${icon('alert', 22)}</span><div class="stack" style="gap:8px;flex:1">
+      ${outs.map(([a, r]) => { const sens = isOut(r.valeur, a.min, a.max); return `<div class="stack" style="gap:2px">
+        <strong>${esc(a.nom)} : ${esc(fmtTemp(r.valeur))} (trop ${esc(sens)})</strong>
+        <span class="small">${esc(conseilHorsNorme(sens))}</span></div>`; }).join('')}
+    </div></div>`;
+  }
+
   function draw() {
     const map = byApp();
     const list = ordered();
@@ -108,6 +119,7 @@ export function renderTemperatures(view, { session }) {
       </div>
       ${dayPickerHtml(day, true)}
       ${pastDayBanner(day)}
+      ${horsNormeHtml(map, list)}
       <div class="temp-layout">
         <div class="temp-groups">${groupsHtml()}</div>
         ${keypadHtml()}
@@ -172,7 +184,7 @@ export function renderTemperatures(view, { session }) {
     setDoc(doc(db, 'releves', `${day}_${moment}_${a.id}`), data, { merge: true })
       .catch((e) => { console.error(e); toast('Erreur d’enregistrement. Réessayez.', 4000); });
 
-    if (out) toast(out === 'chaud' ? `${a.nom} : trop chaud ! Déplacez les produits et prévenez la responsable.` : `${a.nom} : trop froid ! Vérifiez le réglage et prévenez la responsable.`, 5500);
+    if (out) toast(`${a.nom} : trop ${out} ! ${conseilHorsNorme(out)}`, 7000);
 
     // Passe à l'appareil suivant qui n'a pas encore de valeur.
     const map = { ...byApp(), [a.id]: { valeur: value } };

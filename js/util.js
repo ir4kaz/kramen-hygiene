@@ -231,3 +231,10 @@ export const fmtSize = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1
 // ---------- Dates (DLC) ----------
 export function addDaysKey(key, n) { const d = dateFromKey(key); d.setDate(d.getDate() + n); return today(d); }
 export function daysUntil(key) { return Math.round((dateFromKey(key) - dateFromKey(today())) / 86400000); }
+
+// Que faire quand un appareil est hors norme (affiché dans Températures et sur l'accueil).
+export function conseilHorsNorme(sens) {
+  return sens === 'froid'
+    ? 'Mesurez la température des produits, vérifiez le réglage de l’appareil et prévenez la responsable.'
+    : 'Mesurez la température des produits, déplacez-les dans un autre appareil et prévenez la responsable.';
+}
