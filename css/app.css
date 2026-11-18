@@ -393,3 +393,17 @@ details summary { cursor: pointer; color: var(--accent); }
 .howto .num { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; display: grid; place-items: center; }
 @media (max-width: 600px) { .howto { grid-template-columns: 1fr; } }
 .sectiontitle .num { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 14px; margin-right: 6px; vertical-align: 2px; }
+
+/* DLC (v0.28) */
+.typegrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.typebtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 84px; padding: 10px 6px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text, #111827); font: inherit; font-size: 14px; font-weight: 600; text-align: center; cursor: pointer; }
+.typebtn svg { color: var(--accent); }
+.typebtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.typebtn.on svg { color: #fff; }
+.chip.light { font-weight: 500; background: #F3F4F6; border-color: #F3F4F6; }
+.dlcresult { padding: 12px 14px; border-radius: 12px; background: #ECFDF3; color: #065F46; font-size: 16px; }
+.dlcresult.empty { background: #F3F4F6; color: var(--muted); }
+.btn.big { min-height: 56px; font-size: 17px; }
+.segmented .dot { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--alert); color: #fff; font-size: 12px; font-weight: 700; margin-left: 4px; }
+details summary { cursor: pointer; color: var(--muted); min-height: 32px; }
+.segmented button.on .dot { background: #fff; color: var(--accent); }

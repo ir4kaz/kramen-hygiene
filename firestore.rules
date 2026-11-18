@@ -61,6 +61,11 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // DLC : noms déjà utilisés (suggestions), gérés par tout le monde.
+    match /dlc_noms/{id} {
+      allow read, create, update, delete: if active();
+    }
+
     // Nettoyage « à faire absolument » (prévu à l'avance) : géré par tout le monde.
     match /a_faire/{id} {
       allow read, create, update, delete: if active();

@@ -1,6 +1,6 @@
 // Service worker : garde l'appli en cache pour qu'elle s'ouvre sans réseau.
 // Changer VERSION à chaque mise à jour pour forcer le rafraîchissement.
-const VERSION = 'v27';
+const VERSION = 'v28';
 const CACHE = `kramen-hygiene-${VERSION}`;
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
