@@ -119,7 +119,7 @@ export function renderHome(view, { session }) {
       } else if (t.id === 'documents') {
         sub = 'PMS, fiches, fournisseurs…';
       } else if (t.id === 'historique') {
-        sub = 'Relevés, nettoyage, livraisons et PDF';
+        sub = 'Relevés, nettoyage, livraisons, DLC et PDF';
       }
       return `<a href="#/${t.id}" class="tile ${t.soon ? 'soon' : ''} ${t.wide ? 'wide' : ''}">
         ${hot}

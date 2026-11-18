@@ -3,6 +3,7 @@ import { db } from '../firebase.js';
 import {
   collection, query, where, onSnapshot,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
+import { DLC_TYPES, dlcZone } from './dlc.js';
 import {
   esc, icon, today, fmtTemp, rangeLabel, hhmm, TYPES, TYPE_ORDER, FREQS, CATEGORIES, ZONES, ZONE_ORDER, zoneOf,
 } from '../util.js';
@@ -42,12 +43,12 @@ export function renderHistorique(view, { session, sub }) {
   // Sur téléphone on démarre sur « Jour » (tableau étroit), sur tablette/PC sur « Semaine ».
   let mode = window.matchMedia('(max-width: 899px)').matches ? 'jour' : 'semaine';
   let ref = today();
-  let kind = 'temperatures'; // ou 'nettoyage', 'reception'
-  let zone = 'bar'; // nettoyage : bar ou cuisine
+  let kind = 'temperatures'; // ou 'nettoyage', 'reception', 'dlc'
+  let zone = 'bar'; // nettoyage et DLC : bar ou cuisine
   // Lien direct possible : #/historique/<type>/<jour|semaine|mois>/<AAAA-MM-JJ> (utilisé par Documents).
   if (sub) {
     const [k, m, d] = sub.split('/');
-    if (['temperatures', 'nettoyage', 'reception'].includes(k)) kind = k;
+    if (['temperatures', 'nettoyage', 'reception', 'dlc'].includes(k)) kind = k;
     if (['jour', 'semaine', 'mois'].includes(m)) mode = m;
     if (/^\d{4}-\d{2}-\d{2}$/.test(d || '')) ref = d;
   }
@@ -56,19 +57,21 @@ export function renderHistorique(view, { session, sub }) {
   let releves = [];
   let nets = [];
   let recs = [];
+  let dlcs = [];
   let unRel = null;
 
   function subscribe() {
     if (unRel) unRel();
     const { start, end } = period(mode, ref);
-    releves = []; nets = []; recs = [];
+    releves = []; nets = []; recs = []; dlcs = [];
     draw();
-    const coll = { temperatures: 'releves', nettoyage: 'nettoyages', reception: 'receptions' }[kind];
+    const coll = { temperatures: 'releves', nettoyage: 'nettoyages', reception: 'receptions', dlc: 'dlc' }[kind];
+    const champ = kind === 'dlc' ? 'finLe' : 'date'; // DLC : produits finis (utilisés ou jetés) sur la période
     unRel = onSnapshot(
-      query(collection(db, coll), where('date', '>=', toKey(start)), where('date', '<=', toKey(end))),
+      query(collection(db, coll), where(champ, '>=', toKey(start)), where(champ, '<=', toKey(end))),
       (s) => {
         const rows = s.docs.map((d) => ({ id: d.id, ...d.data() }));
-        if (kind === 'temperatures') releves = rows; else if (kind === 'nettoyage') nets = rows; else recs = rows;
+        if (kind === 'temperatures') releves = rows; else if (kind === 'nettoyage') nets = rows; else if (kind === 'dlc') dlcs = rows; else recs = rows;
         draw();
       },
       (e) => { console.error(e); const b = view.querySelector('#hist-body'); if (b) b.innerHTML = `<div class="alertbox">${esc(e.message)}</div>`; },
@@ -197,11 +200,40 @@ export function renderHistorique(view, { session, sub }) {
     };
   }
 
+  function dlcBody() {
+    const list = dlcs.filter((x) => dlcZone(x) === zone && (x.statut === 'utilise' || x.statut === 'jete'))
+      .sort((a, b) => a.finLe.localeCompare(b.finLe) || a.nom.localeCompare(b.nom));
+    const jetes = list.filter((x) => x.statut === 'jete');
+    const perimes = jetes.filter((x) => x.finLe > x.dlc).length;
+    const rows = list.map((x) => {
+      const t = DLC_TYPES[x.type];
+      const apres = x.finLe > x.dlc;
+      const res = x.statut === 'jete'
+        ? `<span class="badge alert">Jeté</span>${apres ? ' <span class="small muted">périmé</span>' : ''}`
+        : `<span class="badge ok">Utilisé</span>${apres ? ' <span class="small txt-alert">après la DLC</span>' : ''}`;
+      return `<tr>
+        <td data-label="Produit"><strong>${esc(x.nom)}</strong>${x.remarque ? `<br><span class="small muted">${esc(x.remarque)}</span>` : ''}</td>
+        <td data-label="Type">${esc(t ? t.court : 'Fait maison')}</td>
+        <td data-label="Fait / ouvert le">${esc(fmtDay(fromKey(x.faitLe)))} · ${esc(x.parNom || '')}</td>
+        <td data-label="DLC">${esc(fmtDay(fromKey(x.dlc)))}</td>
+        <td data-label="Fini le">${esc(fmtDay(fromKey(x.finLe)))} · ${esc(x.finPar || '')}</td>
+        <td data-label="Résultat">${res}</td></tr>`;
+    }).join('');
+    return {
+      titre: `DLC — ${zone === 'bar' ? 'Bar' : 'Cuisine'}`,
+      resume: `${list.length} produit${list.length > 1 ? 's' : ''} terminé${list.length > 1 ? 's' : ''} · ${list.length - jetes.length} utilisé${list.length - jetes.length > 1 ? 's' : ''} · ${jetes.length} jeté${jetes.length > 1 ? 's' : ''}${perimes ? ` (dont ${perimes} périmé${perimes > 1 ? 's' : ''})` : ''}. Les produits encore en cours sont dans l’écran DLC.`,
+      contenu: rows ? `<section class="card tablewrap"><table class="table resp">
+          <thead><tr><th>Produit</th><th>Type</th><th>Fait / ouvert le</th><th>DLC</th><th>Fini le</th><th>Résultat</th></tr></thead>
+          <tbody>${rows}</tbody></table></section>`
+        : '<div class="card pad muted">Aucun produit utilisé ou jeté sur cette période.</div>',
+    };
+  }
+
   function draw() {
     const { start, end, label } = period(mode, ref);
     const days = [];
     for (let d = new Date(start); d <= end; d = addDays(d, 1)) days.push(new Date(d));
-    const body = kind === 'temperatures' ? tempsBody(days, label) : kind === 'nettoyage' ? cleanBody(days) : recBody();
+    const body = kind === 'temperatures' ? tempsBody(days, label) : kind === 'nettoyage' ? cleanBody(days) : kind === 'dlc' ? dlcBody() : recBody();
     const now = new Date();
     view.innerHTML = `
       <div class="row between no-print" style="flex-wrap:wrap;gap:12px">
@@ -212,9 +244,10 @@ export function renderHistorique(view, { session, sub }) {
         <a href="#" data-kind="temperatures" class="${kind === 'temperatures' ? 'on' : ''}">Températures</a>
         <a href="#" data-kind="nettoyage" class="${kind === 'nettoyage' ? 'on' : ''}">Nettoyage</a>
         <a href="#" data-kind="reception" class="${kind === 'reception' ? 'on' : ''}">Réception</a>
+        <a href="#" data-kind="dlc" class="${kind === 'dlc' ? 'on' : ''}">DLC</a>
       </div>
-      ${kind === 'nettoyage' ? `<div class="segmented no-print" role="group" aria-label="Zone" style="max-width:320px">
-        ${ZONE_ORDER.map((z) => `<button type="button" data-zone="${z}" class="${zone === z ? 'on' : ''}" aria-pressed="${zone === z}">${ZONES[z]}</button>`).join('')}
+      ${kind === 'nettoyage' || kind === 'dlc' ? `<div class="segmented no-print" role="group" aria-label="Zone" style="max-width:320px">
+        ${ZONE_ORDER.map((z) => `<button type="button" data-zone="${z}" class="${zone === z ? 'on' : ''}" aria-pressed="${zone === z}">${kind === 'dlc' ? (z === 'bar' ? 'Bar' : 'Cuisine') : ZONES[z]}</button>`).join('')}
       </div>` : ''}
       <div class="row no-print" style="flex-wrap:wrap;gap:12px">
         <div class="segmented seg3" role="group" aria-label="Période">

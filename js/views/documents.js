@@ -85,11 +85,11 @@ function renderList(view, session) {
     const months = [0, 1, 2].map((i) => new Date(now.getFullYear(), now.getMonth() - i, 1));
     const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
     const hRows = months.flatMap((d) => [
-      ['temperatures', 'Relevés de températures'], ['nettoyage', 'Plan de nettoyage'], ['reception', 'Réception des marchandises'],
+      ['temperatures', 'Relevés de températures'], ['nettoyage', 'Plan de nettoyage'], ['reception', 'Réception des marchandises'], ['dlc', 'DLC (produits utilisés et jetés)'],
     ].map(([k, l]) => ({ k, l, d })))
       .filter((x) => !f || x.l.toLowerCase().includes(f) || 'historique'.includes(f) || MOIS[x.d.getMonth()].includes(f));
     const hHtml = hRows.length ? `<section class="stack" style="gap:8px">
-        <h2 style="font-size:15px">Historiques (relevés, nettoyage, livraisons)</h2>
+        <h2 style="font-size:15px">Historiques (relevés, nettoyage, livraisons, DLC)</h2>
         <div class="card list">${hRows.map((x) => `<a class="docrow" href="#/historique/${x.k}/mois/${key(x.d)}">
           <span class="docic">${icon('file', 22)}</span>
           <span class="rinfo"><strong>${esc(x.l)} — ${MOIS[x.d.getMonth()]} ${x.d.getFullYear()}</strong>
