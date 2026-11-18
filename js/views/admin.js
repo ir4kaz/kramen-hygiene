@@ -174,17 +174,18 @@ export function renderAdmin(view, { sub, session }) {
       <div><button class="btn primary" type="submit" id="ego">Créer le compte</button></div>
     </form>
     <div class="card tablewrap">
-      <table class="table">
+      <table class="table resp">
         <thead><tr><th>Prénom</th><th>Rôle</th><th>État</th><th></th></tr></thead>
         <tbody>${list.map((u) => `<tr>
-          <td><strong>${esc(u.prenom)}</strong>${u.id === session.user.uid ? ' <span class="small muted">(vous)</span>' : ''}</td>
-          <td>${u.role === 'admin' ? 'Responsable' : 'Employé'}</td>
-          <td>${u.actif === false ? '<span class="badge todo">Désactivé</span>' : '<span class="badge ok">Actif</span>'}</td>
-          <td>${u.id === session.user.uid || !isAdmin ? '' : `<button class="btn small" type="button" data-toggle-user="${esc(u.id)}">${u.actif === false ? 'Réactiver' : 'Désactiver'}</button>`}</td>
+          <td data-label="Prénom"><strong>${esc(u.prenom)}</strong>${u.id === session.user.uid ? ' <span class="small muted">(vous)</span>' : ''}</td>
+          <td data-label="Rôle">${u.role === 'admin' ? 'Responsable' : 'Employé'}</td>
+          <td data-label="État">${u.actif === false ? '<span class="badge todo">Désactivé</span>' : '<span class="badge ok">Actif</span>'}</td>
+          <td data-label="" style="white-space:nowrap">${u.id === session.user.uid || !isAdmin ? '' : `<button class="btn small" type="button" data-role-user="${esc(u.id)}">${u.role === 'admin' ? 'Repasser employé' : 'Passer responsable'}</button>
+            <button class="btn small" type="button" data-toggle-user="${esc(u.id)}">${u.actif === false ? 'Réactiver' : 'Désactiver'}</button>`}</td>
         </tr>`).join('')}</tbody>
       </table>
     </div>
-    <p class="small muted" style="margin:0">Un employé qui part : désactivez son compte. Ses anciens relevés restent dans l’historique.</p>`;
+    <p class="small muted" style="margin:0">Un employé qui part : désactivez son compte. Ses anciens relevés restent dans l’historique.${isAdmin ? '<br>Vacances : « Passer responsable » donne à un employé les mêmes droits que vous (documents, historique, comptes). À votre retour, touchez « Repasser employé ». Vous ne pouvez pas changer votre propre rôle.' : ''}</p>`;
   }
 
   function draw() {
@@ -236,6 +237,17 @@ export function renderAdmin(view, { sub, session }) {
         deleteDoc(doc(db, 'taches', t.id)).then(() => toast('Tâche supprimée.')).catch((e) => toast(e.message));
         if (editingTask === t.id) editingTask = null;
       }
+    } else if (b.dataset.roleUser) {
+      const u = users.find((x) => x.id === b.dataset.roleUser);
+      if (!u || u.id === session.user.uid) return;
+      const vers = u.role === 'admin' ? 'employe' : 'admin';
+      const msg = vers === 'admin'
+        ? `Donner à ${u.prenom} les droits de responsable ?\n\n${u.prenom} pourra voir les documents, l’historique, les heures sup de l’équipe et gérer les comptes.`
+        : `Repasser ${u.prenom} en employé ?`;
+      if (!window.confirm(msg)) return;
+      updateDoc(doc(db, 'users', u.id), { role: vers })
+        .then(() => toast(vers === 'admin' ? `${u.prenom} est maintenant responsable.` : `${u.prenom} est de nouveau employé.`))
+        .catch((e) => toast(e.message));
     } else if (b.dataset.toggleUser) {
       const u = users.find((x) => x.id === b.dataset.toggleUser);
       updateDoc(doc(db, 'users', u.id), { actif: u.actif === false }).catch((e) => toast(e.message));
