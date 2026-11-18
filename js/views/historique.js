@@ -213,7 +213,7 @@ export function renderHistorique(view, { session, sub }) {
         : `<span class="badge ok">Utilisé</span>${apres ? ' <span class="small txt-alert">après la DLC</span>' : ''}`;
       return `<tr>
         <td data-label="Produit"><strong>${esc(x.nom)}</strong>${x.remarque ? `<br><span class="small muted">${esc(x.remarque)}</span>` : ''}</td>
-        <td data-label="Type">${esc(t ? t.court : 'Fait maison')}</td>
+        <td data-label="Type">${esc(t ? t.court : 'Préparation')}</td>
         <td data-label="Fait / ouvert le">${esc(fmtDay(fromKey(x.faitLe)))} · ${esc(x.parNom || '')}</td>
         <td data-label="DLC">${esc(fmtDay(fromKey(x.dlc)))}</td>
         <td data-label="Fini le">${esc(fmtDay(fromKey(x.finLe)))} · ${esc(x.finPar || '')}</td>

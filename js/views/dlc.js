@@ -12,9 +12,9 @@ import {
 } from '../util.js';
 
 export const DLC_TYPES = {
-  decongele: { label: 'Sorti du congélateur', court: 'Décongelé', jours: 3, aide: 'Ne jamais recongeler.' },
-  maison: { label: 'Fait maison', court: 'Fait maison', jours: 3, aide: '' },
-  ouvert: { label: 'Ouvert', court: 'Ouvert', jours: null, aide: 'Regardez l’étiquette : « à consommer sous … jours après ouverture ».' },
+  decongele: { label: 'Sorti du congélateur', court: 'Décongelé', le: 'Décongelé le', jours: 3, aide: 'Ne jamais recongeler.' },
+  maison: { label: 'Préparation', court: 'Préparation', le: 'Fait le', jours: 3, aide: '' },
+  ouvert: { label: 'Produit', court: 'Produit', le: 'Ouvert le', jours: null, aide: 'Regardez l’étiquette : « à consommer sous … jours après ouverture ».' },
 };
 const TYPE_ORDER = ['maison', 'ouvert']; // « décongelé » n'est plus proposé (anciens produits encore affichés)
 const typeIcon = (k, zone) => (k === 'maison' ? 'pot' : k === 'ouvert' ? (zone === 'bar' ? 'open' : 'bag') : 'snow');
@@ -64,7 +64,7 @@ export function renderDlc(view, { session }) {
         ${icon(typeIcon(k, zone), 26)}<span>${esc(DLC_TYPES[k].label)}</span></button>`).join('');
     if (!st.type) {
       return `<div class="card pad stack" style="gap:12px" id="xf">
-        <strong>Qu’est-ce qui arrive au produit ?</strong>
+        <strong>Vous ajoutez :</strong>
         <div class="typegrid">${typeBtns}</div>
         <div><button type="button" class="btn" data-closeform>Annuler</button></div>
       </div>`;
@@ -75,7 +75,7 @@ export function renderDlc(view, { session }) {
     return `<form id="xf" class="card pad stack" style="gap:16px" novalidate>
       <div class="typegrid">${typeBtns}</div>
       ${t.aide ? `<div class="small muted">${esc(t.aide)}</div>` : ''}
-      <div class="field"><label for="xn">Produit</label>
+      <div class="field"><label for="xn">Nom</label>
         <input id="xn" value="${esc(st.nom)}" autocomplete="off" placeholder="${st.type === 'maison' ? (zone === 'bar' ? 'ex. Sirop maison, citronnade' : 'ex. Bouillon, sauce, poulet mariné') : zone === 'bar' ? 'ex. Sirop de citron, lait' : 'ex. Crème, sauce soja'}">
         ${sug.length ? `<div class="chips" style="margin-top:8px">${sug.map((x) => `<button type="button" class="chip light" data-sug="${esc(x.id)}">${esc(x.nom)}</button>`).join('')}</div>` : ''}
       </div>
@@ -102,7 +102,7 @@ export function renderDlc(view, { session }) {
     return `<div class="crow">
       <div class="info">
         <span class="nm">${esc(x.nom)}</span>
-        <span class="small muted">${t ? `${esc(t.court)} le` : 'Fait le'} ${esc(shortDate(dateFromKey(x.faitLe)))} · ${esc(x.parNom || '')}</span>
+        <span class="small muted">${esc(t ? t.le : 'Fait le')} ${esc(shortDate(dateFromKey(x.faitLe)))} · ${esc(x.parNom || '')}</span>
         <span class="small"><strong>DLC ${esc(shortDate(dateFromKey(x.dlc)))}</strong>${x.type === 'decongele' ? ' · <span class="muted">ne pas recongeler</span>' : ''}</span>
         ${x.remarque ? `<span class="small">${esc(x.remarque)}</span>` : ''}
         ${dlcBadge(x.dlc)}
@@ -114,17 +114,17 @@ export function renderDlc(view, { session }) {
     </div>`;
   }
 
-  // Liste séparée en deux blocs : Faits maison / Ouverts (+ anciens « décongelés » s'il en reste).
+  // Liste séparée en deux blocs : Préparations / Produits (ouverts) (+ anciens « décongelés » s'il en reste).
   function groupes(list) {
     const g = [
-      ['maison', 'Faits maison', list.filter((x) => x.type === 'maison' || !x.type)],
-      ['ouvert', 'Ouverts', list.filter((x) => x.type === 'ouvert')],
+      ['maison', 'Préparations', list.filter((x) => x.type === 'maison' || !x.type)],
+      ['ouvert', 'Produits', list.filter((x) => x.type === 'ouvert')],
       ['decongele', 'Sortis du congélateur', list.filter((x) => x.type === 'decongele')],
     ];
     return g.filter(([k, , l]) => l.length || k !== 'decongele').map(([k, titre, l]) => `<section class="dlc-block ${k === 'ouvert' ? 'alt' : ''} stack" style="gap:10px">
         <h2 class="sectiontitle">${icon(typeIcon(k, zone), 22)} ${titre} <span class="muted small">(${l.length})</span></h2>
         ${l.length ? `<div class="card list">${l.map(rowHtml).join('')}</div>`
-          : `<div class="small muted">${k === 'maison' ? 'Aucun produit fait maison' : 'Aucun produit ouvert'} ${zone === 'bar' ? 'au bar' : 'en cuisine'}.</div>`}
+          : `<div class="small muted">${k === 'maison' ? 'Aucune préparation' : 'Aucun produit ouvert'} ${zone === 'bar' ? 'au bar' : 'en cuisine'}.</div>`}
       </section>`).join('');
   }
 
@@ -140,7 +140,7 @@ export function renderDlc(view, { session }) {
     }).join('');
     view.innerHTML = `
       <div class="stack" style="gap:4px"><h1 class="title">DLC</h1>
-        <span class="small muted">Produits faits maison ou ouverts. Ce qui est au congélateur n’a pas de DLC.</span></div>
+        <span class="small muted">Préparations faites sur place et produits ouverts. Ce qui est au congélateur n’a pas de DLC.</span></div>
       <div class="segmented zonesel" role="group" aria-label="Zone">${zbtn}</div>
       ${showForm ? formHtml() : '<button type="button" class="btn primary big" data-openform>+ Ajouter un produit</button>'}
       ${perimes ? `<div class="alertbox"><span class="ic">${icon('alert', 22)}</span><div><strong>${perimes} produit${perimes > 1 ? 's' : ''} périmé${perimes > 1 ? 's' : ''}</strong><br><span class="small muted">À jeter, puis touchez « Jeté ».</span></div></div>` : ''}
