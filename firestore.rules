@@ -39,18 +39,17 @@ service cloud.firestore {
 
     match /appareils/{id} {
       allow read: if active();
-      // Tout le monde peut ajouter ; seule la responsable modifie ou supprime.
+      // Tout le monde peut ajouter, modifier et supprimer un appareil.
       allow create: if active() || setupBatchAdmin();
-      allow update: if isAdmin();
+      allow update: if active();
       // L'appli ne propose la suppression que pour un appareil sans aucun relevé.
-      allow delete: if isAdmin();
+      allow delete: if active();
     }
 
     // Tâches du plan de nettoyage : lues par tous, gérées par la responsable.
     match /taches/{id} {
       allow read: if active();
-      allow create: if active();
-      allow update, delete: if isAdmin();
+      allow create, update, delete: if active();
     }
 
     // Séances de nettoyage (cases cochées, remarques).
@@ -64,10 +63,7 @@ service cloud.firestore {
 
     // Fournisseurs : lus par tous, gérés par la responsable.
     match /fournisseurs/{id} {
-      allow read: if active();
-      allow create: if active();
-      allow update: if isAdmin();
-      allow delete: if false;
+      allow read, create, update, delete: if active();
     }
 
     // Livraisons reçues.
@@ -110,8 +106,7 @@ service cloud.firestore {
 
     // DLC : préparations (liste des durées) et produits en cours.
     match /preparations/{id} {
-      allow read, create: if active();
-      allow update, delete: if isAdmin();
+      allow read, create, update, delete: if active();
     }
     match /dlc/{id} {
       allow read: if active();
@@ -130,7 +125,13 @@ service cloud.firestore {
       allow read: if active() && (resource.data.uid == request.auth.uid || isAdmin());
       allow create, update: if active() && request.resource.data.uid == request.auth.uid
         && id == request.auth.uid + '_' + request.resource.data.date;
-      allow delete: if active() && (resource.data.uid == request.auth.uid || isAdmin());
+      // La responsable consulte mais ne modifie ni ne supprime les heures des employés.
+      allow delete: if active() && resource.data.uid == request.auth.uid;
+    }
+
+    // Stock : tout le monde gère.
+    match /stock/{id} {
+      allow read, create, update, delete: if active();
     }
 
     match /releves/{id} {

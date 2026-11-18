@@ -16,6 +16,7 @@ import { renderDocuments } from './views/documents.js';
 import { renderDlc } from './views/dlc.js';
 import { renderCourses } from './views/courses.js';
 import { renderHeures } from './views/heures.js';
+import { renderStock } from './views/stock.js';
 
 const app = document.getElementById('app');
 
@@ -28,15 +29,18 @@ const NAV = [
   { id: 'nettoyage', label: 'Nettoyage', icon: 'clean' },
   { id: 'reception', label: 'Réception', icon: 'truck' },
   { id: 'dlc', label: 'DLC', icon: 'tag' },
+  { id: 'stock', label: 'Stock', icon: 'box' },
   { id: 'courses', label: 'Courses', icon: 'cart' },
-  { id: 'heures', label: 'Heures', icon: 'heures' },
+  { id: 'heures', label: 'Heures sup', icon: 'heures' },
   { id: 'documents', label: 'Documents', icon: 'folder', adminOnly: true },
   { id: 'historique', label: 'Historique', icon: 'history', adminOnly: true },
   { id: 'admin', label: 'Réglages', icon: 'admin' },
   { id: 'aide', label: 'Aide', icon: 'help' },
 ];
 // Sur téléphone, le menu du bas garde l'essentiel.
-const BOTTOM = ['accueil', 'temperatures', 'nettoyage', 'reception', 'historique'];
+// Barre du bas sur téléphone : différente pour les employés et pour la responsable.
+const BOTTOM_EMPLOYE = ['accueil', 'temperatures', 'nettoyage', 'heures', 'reception'];
+const BOTTOM_ADMIN = ['accueil', 'nettoyage', 'dlc', 'stock', 'reception'];
 
 const ROUTES = {
   accueil: renderHome,
@@ -47,6 +51,7 @@ const ROUTES = {
   dlc: renderDlc,
   courses: renderCourses,
   heures: renderHeures,
+  stock: renderStock,
   historique: renderHistorique,
   aide: renderAide,
   admin: renderAdmin,
@@ -63,7 +68,8 @@ function layout(active) {
   const isAdmin = session.user?.role === 'admin';
   const items = NAV.filter((n) => !n.adminOnly || isAdmin);
   const side = items.map((n) => `<a href="#/${n.id}" class="${n.id === active ? 'on' : ''}">${icon(n.icon, 22)}<span>${n.label}</span></a>`).join('');
-  const bottom = items.filter((n) => BOTTOM.includes(n.id))
+  const bottomIds = isAdmin ? BOTTOM_ADMIN : BOTTOM_EMPLOYE;
+  const bottom = bottomIds.map((id) => items.find((n) => n.id === id)).filter(Boolean)
     .map((n) => `<a href="#/${n.id}" class="${n.id === active ? 'on' : ''}">${icon(n.icon, 22)}<span>${n.label}</span></a>`).join('');
   return `
   <div class="layout">

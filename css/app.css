@@ -351,3 +351,31 @@ html, body { overflow-x: hidden; }
 details summary { cursor: pointer; color: var(--accent); }
 .grid2 .btn { min-height: 56px; flex-direction: column; gap: 0; line-height: 1.2; }
 .crow .info .badge { align-self: flex-start; }
+
+/* ---------- DLC : deux blocs sur la même page ---------- */
+.dlc-block { padding: 16px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+.dlc-block.alt { background: #F8F4EF; border-color: #EADFD2; }
+.dlc-block .card { box-shadow: none; }
+.sectiontitle { font-size: 19px; display: flex; align-items: center; gap: 8px; }
+
+/* ---------- Stock ---------- */
+.stockrow { align-items: center; }
+.qty { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.qbtn { width: 44px; height: 44px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); font-size: 22px; font-weight: 600; }
+.qbtn:disabled { opacity: .35; }
+.qval { min-width: 46px; display: flex; flex-direction: column; align-items: center; line-height: 1.1; font-size: 18px; }
+.linkbtn { background: none; border: none; padding: 4px 0; color: var(--accent); font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; }
+.linkbtn:disabled { color: var(--muted); }
+
+/* ---------- Heures sup ---------- */
+.hsgrid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 520px; align-items: start; }
+@media (max-width: 480px) { .hsgrid { grid-template-columns: 1fr; } }
+.hsbtn { width: 100%; border: none; background: none; padding: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; min-height: 56px; }
+.hsval { font-size: 22px; font-weight: 700; color: var(--accent); }
+.hscard.has { border-color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); font-weight: 600; font-size: 15px; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.stockrow .info { flex: 1 1 auto; min-width: 0; }
+.linkbtn { white-space: nowrap; }
+.iconbtn.editmini { width: 36px; height: 36px; color: var(--muted); }

@@ -1,4 +1,4 @@
-// Réglages : appareils, tâches de nettoyage, fournisseurs, employés. Tout le monde ajoute ; la responsable modifie et supprime.
+// Réglages : appareils et tâches de nettoyage (tout le monde gère), employés (tout le monde ajoute, la responsable gère).
 import { db, firebaseConfig, LOGIN_DOMAIN } from '../firebase.js';
 import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js';
 import {
@@ -32,7 +32,7 @@ export function renderAdmin(view, { sub, session }) {
   // Tout le monde peut ajouter ; seule la responsable peut modifier, désactiver ou supprimer.
   const isAdmin = session.user.role === 'admin';
   const ifAdmin = (html) => (isAdmin ? html : '');
-  const tab = ['employes', 'nettoyage', 'fournisseurs'].includes(sub) ? sub : 'appareils';
+  const tab = ['employes', 'nettoyage'].includes(sub) ? sub : 'appareils';
   let appareils = [];
   let users = [];
   let taches = [];
@@ -45,7 +45,6 @@ export function renderAdmin(view, { sub, session }) {
     return `<div class="tabs" role="tablist">
       <a href="#/admin/appareils" class="${tab === 'appareils' ? 'on' : ''}">Appareils</a>
       <a href="#/admin/nettoyage" class="${tab === 'nettoyage' ? 'on' : ''}">Nettoyage</a>
-      <a href="#/admin/fournisseurs" class="${tab === 'fournisseurs' ? 'on' : ''}">Fournisseurs</a>
       <a href="#/admin/employes" class="${tab === 'employes' ? 'on' : ''}">Employés</a>
     </div>`;
   }
@@ -100,9 +99,9 @@ export function renderAdmin(view, { sub, session }) {
             <td>${esc(ZONES[t.zone] || 'Autre')}</td>
             <td>${t.actif === false ? '<span class="badge todo">Désactivée</span>' : '<span class="badge ok">Active</span>'}</td>
             <td style="white-space:nowrap">
-              ${ifAdmin(`<button class="btn small" type="button" data-edit-task="${esc(t.id)}">Modifier</button>
+              <button class="btn small" type="button" data-edit-task="${esc(t.id)}">Modifier</button>
               <button class="btn small" type="button" data-toggle-task="${esc(t.id)}">${t.actif === false ? 'Réactiver' : 'Désactiver'}</button>
-              <button class="btn small" type="button" data-del-task="${esc(t.id)}">Supprimer</button>`)}
+              <button class="btn small" type="button" data-del-task="${esc(t.id)}">Supprimer</button>
             </td></tr>`).join('')}</tbody>
         </table>
       </div>`;
@@ -151,9 +150,9 @@ export function renderAdmin(view, { sub, session }) {
           <td>${esc(rangeLabel(a.min, a.max))}</td>
           <td>${a.actif === false ? '<span class="badge todo">Désactivé</span>' : '<span class="badge ok">Actif</span>'}</td>
           <td style="white-space:nowrap">
-            ${ifAdmin(`<button class="btn small" type="button" data-edit="${esc(a.id)}">Modifier</button>
+            <button class="btn small" type="button" data-edit="${esc(a.id)}">Modifier</button>
             <button class="btn small" type="button" data-toggle-app="${esc(a.id)}">${a.actif === false ? 'Réactiver' : 'Désactiver'}</button>
-            <button class="btn small" type="button" data-del-app="${esc(a.id)}">Supprimer</button>`)}
+            <button class="btn small" type="button" data-del-app="${esc(a.id)}">Supprimer</button>
           </td></tr>`).join('')}</tbody>
       </table>
     </div>
@@ -189,8 +188,8 @@ export function renderAdmin(view, { sub, session }) {
   }
 
   function draw() {
-    const html = tab === 'appareils' ? appareilsHtml() : tab === 'nettoyage' ? nettoyageHtml() : tab === 'fournisseurs' ? fournisseursHtml() : employesHtml();
-    view.innerHTML = `<h1 class="title">Réglages</h1>${tabs()}${html}${isAdmin ? '' : '<p class="small muted" style="margin:0">Vous pouvez ajouter. Pour modifier ou supprimer, demandez à la responsable.</p>'}`;
+    const html = tab === 'appareils' ? appareilsHtml() : tab === 'nettoyage' ? nettoyageHtml() : employesHtml();
+    view.innerHTML = `<h1 class="title">Réglages</h1>${tabs()}${html}${isAdmin || tab !== 'employes' ? '' : '<p class="small muted" style="margin:0">Vous pouvez ajouter un employé. Pour modifier ou désactiver un compte, demandez à la responsable.</p>'}`;
   }
 
   view.addEventListener('click', async (ev) => {

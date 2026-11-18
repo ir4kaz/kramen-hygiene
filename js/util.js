@@ -22,6 +22,7 @@ const PATHS = {
   chat: '<path d="M20 11.5a8 8 0 0 1-11.6 7.1L4 20l1.4-4.2A8 8 0 1 1 20 11.5Z"/>',
   sms: '<path d="M4 5h16v11H8l-4 4Z"/><path d="M8 10h8"/>',
   tag: '<path d="M3 12V4h8l9 9-8 8Z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  box: '<path d="M3 7l9-4 9 4v10l-9 4-9-4Z"/><path d="M3 7l9 4 9-4"/><path d="M12 11v10"/>',
   cart: '<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M3 4h2l2.5 11h11L21 8H6.5"/>',
   heures: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5h4"/>',
   backspace: '<path d="M21 5H8l-6 7 6 7h13Z"/><path d="M12 9l6 6"/><path d="M18 9l-6 6"/>',

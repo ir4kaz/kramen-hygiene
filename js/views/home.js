@@ -1,5 +1,6 @@
 // Accueil : avancement des relevés, alertes, accès rapides.
 import { db } from '../firebase.js';
+import { stockEtat } from './stock.js';
 import {
   collection, query, where, onSnapshot,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
@@ -12,8 +13,9 @@ const TILES = [
   { id: 'nettoyage', label: 'Nettoyage', icon: 'clean' },
   { id: 'reception', label: 'Réception', icon: 'truck' },
   { id: 'dlc', label: 'DLC', icon: 'tag' },
+  { id: 'stock', label: 'Stock', icon: 'box' },
   { id: 'courses', label: 'Courses', icon: 'cart' },
-  { id: 'heures', label: 'Heures', icon: 'heures' },
+  { id: 'heures', label: 'Heures sup', icon: 'heures' },
   { id: 'documents', label: 'Documents', icon: 'folder', adminOnly: true },
   { id: 'historique', label: 'Historique', icon: 'history', adminOnly: true },
 ];
@@ -28,6 +30,7 @@ export function renderHome(view, { session }) {
   let recs = [];
   let dlcs = [];
   let courses = [];
+  let stock = [];
   const service = currentService();
 
   function draw() {
@@ -94,11 +97,15 @@ export function renderHome(view, { session }) {
       } else if (t.id === 'dlc') {
         sub = dlcs.length ? `${dlcs.length} produit${dlcs.length > 1 ? 's' : ''} en cours${dlcPerimes ? ` · ${dlcPerimes} périmé${dlcPerimes > 1 ? 's' : ''}` : ''}` : 'Aucun produit en cours';
         if (dlcPerimes + dlcBientot) hot = '<span class="badge hot">À voir</span>';
+      } else if (t.id === 'stock') {
+        const bas = stock.filter((x) => stockEtat(x) !== 'ok').length;
+        sub = stock.length ? (bas ? `${bas} article${bas > 1 ? 's' : ''} à racheter` : 'Tout est en stock') : 'À remplir';
+        if (stock.some((x) => stockEtat(x) === 'rupture')) hot = '<span class="badge hot">Rupture</span>';
       } else if (t.id === 'courses') {
         const n = courses.filter((x) => !x.achete).length;
         sub = n ? `${n} article${n > 1 ? 's' : ''} à acheter` : 'Liste vide';
       } else if (t.id === 'heures') {
-        sub = session.user.role === 'admin' ? 'Heures de l’équipe' : 'Noter mes heures';
+        sub = session.user.role === 'admin' ? 'Heures sup de l’équipe' : 'Noter mes heures sup';
       } else if (t.id === 'documents') {
         sub = 'PMS, fiches, fournisseurs…';
       } else if (t.id === 'historique') {
@@ -155,5 +162,9 @@ export function renderHome(view, { session }) {
     courses = s.docs.map((d) => ({ id: d.id, ...d.data() }));
     draw();
   });
-  return () => { un1(); un2(); un3(); un4(); un5(); un6(); un7(); };
+  const un8 = onSnapshot(collection(db, 'stock'), (s) => {
+    stock = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+    draw();
+  });
+  return () => { un1(); un2(); un3(); un4(); un5(); un6(); un7(); un8(); };
 }

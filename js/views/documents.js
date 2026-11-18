@@ -1,4 +1,4 @@
-// Documents : classeur numérique (PMS, fiches techniques, notices, papiers…) + coordonnées des fournisseurs.
+// Documents : classeur numérique (PMS, fiches techniques, notices, papiers…), bons de livraison et historiques.
 // Les fichiers sont découpés en morceaux de moins de 1 Mo (limite d'un document Firestore).
 import { db } from '../firebase.js';
 import {
@@ -59,17 +59,7 @@ function renderList(view, session) {
       </section>`;
     }).join('');
 
-    const fl = fournisseurs.filter((x) => x.actif !== false && (!f || x.nom.toLowerCase().includes(f) || (x.livre || '').toLowerCase().includes(f)))
-      .sort((a, b) => a.nom.localeCompare(b.nom));
-    const fHtml = fl.length ? `<section class="stack" style="gap:8px">
-        <h2 style="font-size:15px">Fournisseurs <span class="muted small">(${fl.length})</span></h2>
-        <div class="card list">${fl.map((x) => `<div class="docrow">
-          <span class="docic">${icon('truck', 22)}</span>
-          <span class="rinfo"><strong>${esc(x.nom)}</strong>${x.livre ? `<span class="small muted">${esc(x.livre)}</span>` : ''}
-            <span class="small">${x.tel ? `<a href="tel:${esc(x.tel)}">${esc(x.tel)}</a>` : ''}${x.tel && x.email ? ' · ' : ''}${x.email ? `<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>` : ''}</span></span>
-        </div>`).join('')}</div>
-        ${isAdmin ? '<a href="#/admin/fournisseurs" class="small">Gérer les fournisseurs dans Réglages</a>' : ''}
-      </section>` : '';
+    const fHtml = '';
 
     // Bons de livraison : les photos prises dans Réception (pas de copie, on renvoie vers la livraison).
     thumbs.splice(0).forEach((u) => URL.revokeObjectURL(u));

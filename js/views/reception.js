@@ -1,7 +1,7 @@
 // Réception marchandise : photo du bon / des étiquettes, températures des produits, contrôles.
 import { db } from '../firebase.js';
 import {
-  collection, query, where, onSnapshot, doc, getDoc, writeBatch, serverTimestamp, Bytes,
+  collection, query, where, onSnapshot, doc, getDoc, writeBatch, serverTimestamp, Bytes, addDoc, updateDoc, deleteDoc,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
   esc, icon, today, shortDate, hhmm, toast, fmtTemp, parseTemp,
@@ -25,6 +25,7 @@ const tempOk = (cat, t) => {
 export function renderReception(view, { sub, session }) {
   if (sub === 'nouvelle') return renderForm(view, session);
   if (sub === 'achat') return renderForm(view, session, null, 'achat');
+  if (sub === 'fournisseurs') return renderFournisseurs(view);
   if (sub && sub.startsWith('modifier/')) return renderForm(view, session, sub.slice(9));
   if (sub) return renderDetail(view, sub, session);
   return renderList(view);
@@ -65,6 +66,7 @@ function renderList(view) {
           <a class="btn" href="#/reception/achat" style="text-decoration:none;color:inherit">${icon('cart', 20)} Nouvel achat</a>
         </div>
       </div>
+      ${recTabs('livraisons')}
       ${dayPickerHtml(day, true)}
       <div class="stack" style="gap:12px">${cards || '<div class="card pad muted">Aucune livraison enregistrée ce jour-là.</div>'}</div>`;
   }
@@ -366,4 +368,97 @@ function renderDetail(view, id, session) {
     }
   })();
   return () => { alive = false; urls.forEach((u) => URL.revokeObjectURL(u)); };
+}
+
+// Onglets en haut de Réception.
+function recTabs(on) {
+  return `<div class="tabs" role="tablist">
+    <a href="#/reception" class="${on === 'livraisons' ? 'on' : ''}">Livraisons et achats</a>
+    <a href="#/reception/fournisseurs" class="${on === 'fournisseurs' ? 'on' : ''}">Fournisseurs</a></div>`;
+}
+
+// ---------- Fournisseurs (tout le monde ajoute, modifie, supprime) ----------
+function renderFournisseurs(view) {
+  let list = [];
+  let editing = null;
+  let showForm = false;
+  let filtre = '';
+
+  function formHtml() {
+    const e = list.find((f) => f.id === editing);
+    return `<form id="ff" class="card pad stack" style="gap:12px" novalidate>
+      <strong>${e ? `Modifier « ${esc(e.nom)} »` : 'Ajouter un fournisseur'}</strong>
+      <div class="form-grid">
+        <div class="field"><label for="fn">Nom</label><input id="fn" value="${esc(e?.nom || '')}" placeholder="ex. Metro"></div>
+        <div class="field"><label for="ftel">Téléphone</label><input id="ftel" type="tel" value="${esc(e?.tel || '')}"></div>
+        <div class="field"><label for="fmail">E-mail</label><input id="fmail" type="email" value="${esc(e?.email || '')}"></div>
+      </div>
+      <div class="field"><label for="fliv">Ce qu’il livre (facultatif)</label><input id="fliv" value="${esc(e?.livre || '')}" placeholder="ex. Viandes, légumes, produits coréens"></div>
+      <div class="field"><label for="fnote">Remarque (facultatif)</label><input id="fnote" value="${esc(e?.note || '')}" placeholder="ex. livre le mardi, commande avant 10h"></div>
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <button class="btn primary" type="submit">${e ? 'Enregistrer' : 'Ajouter'}</button>
+        <button class="btn" type="button" data-cancel>Annuler</button>
+        ${e ? '<button class="btn" type="button" data-del style="color:var(--alert)">Supprimer</button>' : ''}
+      </div>
+    </form>`;
+  }
+
+  function draw() {
+    const f = filtre.trim().toLowerCase();
+    const l = list.filter((x) => !f || x.nom.toLowerCase().includes(f) || (x.livre || '').toLowerCase().includes(f))
+      .sort((a, b) => a.nom.localeCompare(b.nom));
+    const keepFocus = document.activeElement?.id === 'fq';
+    view.innerHTML = `
+      <div class="row between" style="flex-wrap:wrap;gap:12px">
+        <h1 class="title">Réception</h1>
+        ${showForm ? '' : '<button type="button" class="btn primary" data-new>+ Ajouter un fournisseur</button>'}
+      </div>
+      ${recTabs('fournisseurs')}
+      ${showForm ? formHtml() : ''}
+      ${list.length > 6 ? `<input id="fq" class="select-lg" type="search" placeholder="Rechercher un fournisseur" value="${esc(filtre)}" aria-label="Rechercher">` : ''}
+      ${l.length ? `<div class="card list">${l.map((x) => `<div class="docrow">
+          <span class="docic">${icon('truck', 22)}</span>
+          <span class="rinfo"><strong>${esc(x.nom)}</strong>
+            ${x.livre ? `<span class="small muted">${esc(x.livre)}</span>` : ''}
+            ${x.note ? `<span class="small muted">${esc(x.note)}</span>` : ''}
+            <span class="row" style="gap:8px;flex-wrap:wrap;margin-top:4px">
+              ${x.tel ? `<a class="btn small" href="tel:${esc(x.tel.replace(/\s/g, ''))}" style="text-decoration:none;color:inherit">Appeler ${esc(x.tel)}</a>` : ''}
+              ${x.email ? `<a class="btn small" href="mailto:${esc(x.email)}" style="text-decoration:none;color:inherit">E-mail</a>` : ''}
+            </span></span>
+          <button type="button" class="iconbtn" data-edit="${esc(x.id)}" aria-label="Modifier ${esc(x.nom)}">✎</button>
+        </div>`).join('')}</div>`
+        : `<div class="card pad muted">${list.length ? 'Aucun résultat.' : 'Aucun fournisseur. Ajoutez-les avec leur téléphone et leur e-mail.'}</div>`}`;
+    if (keepFocus) { const q = view.querySelector('#fq'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+  }
+
+  view.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.hasAttribute('data-new')) { editing = null; showForm = true; draw(); view.querySelector('#fn')?.focus(); }
+    else if (b.dataset.edit) { editing = b.dataset.edit; showForm = true; draw(); window.scrollTo(0, 0); }
+    else if (b.hasAttribute('data-cancel')) { editing = null; showForm = false; draw(); }
+    else if (b.hasAttribute('data-del')) {
+      const x = list.find((y) => y.id === editing);
+      if (x && window.confirm(`Supprimer le fournisseur « ${x.nom} » ? Ses anciennes livraisons restent.`)) {
+        deleteDoc(doc(db, 'fournisseurs', x.id)).catch((er) => toast(er.message));
+        editing = null; showForm = false; draw();
+      }
+    }
+  });
+  view.addEventListener('input', (e) => { if (e.target.id === 'fq') { filtre = e.target.value; draw(); } });
+  view.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const data = { nom: f.fn.value.trim(), tel: f.ftel.value.trim(), email: f.fmail.value.trim(), livre: f.fliv.value.trim(), note: f.fnote.value.trim() };
+    if (!data.nom) { toast('Donnez un nom au fournisseur.'); return; }
+    if (editing) updateDoc(doc(db, 'fournisseurs', editing), data).catch((er) => toast(er.message));
+    else addDoc(collection(db, 'fournisseurs'), { ...data, actif: true, createdAt: serverTimestamp() }).catch((er) => toast(er.message));
+    toast(editing ? 'Fournisseur modifié.' : 'Fournisseur ajouté.');
+    editing = null; showForm = false; draw();
+  });
+  const un = onSnapshot(collection(db, 'fournisseurs'), (s) => {
+    list = s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((x) => x.actif !== false);
+    if (!showForm) draw();
+  });
+  draw();
+  return () => un();
 }
