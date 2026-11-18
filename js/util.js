@@ -14,6 +14,7 @@ const PATHS = {
   bag: '<path d="M8 7c-2 2-3 5.5-3 8.5A4.5 4.5 0 0 0 9.5 20h5a4.5 4.5 0 0 0 4.5-4.5c0-3-1-6.5-3-8.5"/><path d="M8 7h8"/><path d="M8 7 5.5 3.5"/><path d="M16 7l2.5-3.5"/><path d="M10 7l-.5-3"/><path d="M14 7l.5-3"/>',
   pot: '<path d="M4 10h16v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4Z"/><path d="M2 10h20"/><path d="M9 6c0-1 1-1.5 1-2.5"/><path d="M14 6c0-1 1-1.5 1-2.5"/>',
   open: '<path d="M7 8h10l-1 13H8Z"/><path d="M6 8l1-3h10l1 3"/><path d="M10 3.5l4-1.5"/>',
+  store: '<path d="M4 9.5V20h16V9.5"/><path d="M3 4h18l1 4.5a2.7 2.7 0 0 1-5 .8 2.7 2.7 0 0 1-5 0 2.7 2.7 0 0 1-5 0 2.7 2.7 0 0 1-5-.8Z"/><path d="M10 20v-5h4v5"/>',
   folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
   home: '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/>',
   history: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',

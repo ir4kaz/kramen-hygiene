@@ -72,11 +72,11 @@ export function renderNettoyage(view, { session }) {
     if (!taches.length) {
       body = true
         ? `<div class="card pad stack" style="gap:12px"><strong>Aucune tâche de nettoyage pour l’instant.</strong>
-            <span class="muted small">Créez le plan de départ (fiche du bar, entretien après service, citrons, menthe, machine à glaçons). Vous pourrez en ajouter d’autres dans Réglages.</span>
+            <span class="muted small">Créez le plan de départ (fiche du bar, entretien après service, citrons, menthe, machine à glaçons). Vous pourrez en ajouter d’autres dans « Le resto ».</span>
             <button type="button" class="btn primary" data-seed style="align-self:flex-start">Créer le plan de nettoyage de départ</button></div>`
         : '<div class="card pad muted">Aucune tâche de nettoyage. La responsable doit créer le plan dans Admin.</div>';
     } else if (!tl.length) {
-      body = `<div class="card pad muted">Aucune tâche « ${esc(FREQS[seance].court)} » pour ${esc(ZONES[zone])}. Ajoutez-en dans Réglages > Nettoyage.</div>`;
+      body = `<div class="card pad muted">Aucune tâche « ${esc(FREQS[seance].court)} » pour ${esc(ZONES[zone])}. Ajoutez-en dans Le resto > Nettoyage.</div>`;
     } else {
       body = [zone].map(() => {
         const zt = tl;

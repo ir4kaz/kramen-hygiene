@@ -1,4 +1,4 @@
-// Réglages : appareils et tâches de nettoyage (tout le monde gère), employés (tout le monde ajoute, la responsable gère).
+// Le resto : appareils et tâches de nettoyage (tout le monde gère), employés (tout le monde ajoute, la responsable gère).
 import { db, firebaseConfig, LOGIN_DOMAIN } from '../firebase.js';
 import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js';
 import {
@@ -189,7 +189,7 @@ export function renderAdmin(view, { sub, session }) {
 
   function draw() {
     const html = tab === 'appareils' ? appareilsHtml() : tab === 'nettoyage' ? nettoyageHtml() : employesHtml();
-    view.innerHTML = `<h1 class="title">Réglages</h1>${tabs()}${html}${isAdmin || tab !== 'employes' ? '' : '<p class="small muted" style="margin:0">Vous pouvez ajouter un employé. Pour modifier ou désactiver un compte, demandez à la responsable.</p>'}`;
+    view.innerHTML = `<h1 class="title">Le resto</h1>${tabs()}${html}${isAdmin || tab !== 'employes' ? '' : '<p class="small muted" style="margin:0">Vous pouvez ajouter un employé. Pour modifier ou désactiver un compte, demandez à la responsable.</p>'}`;
   }
 
   view.addEventListener('click', async (ev) => {

@@ -34,7 +34,7 @@ const NAV = [
   { id: 'heures', label: 'Heures sup', icon: 'heures' },
   { id: 'documents', label: 'Documents', icon: 'folder', adminOnly: true },
   { id: 'historique', label: 'Historique', icon: 'history', adminOnly: true },
-  { id: 'admin', label: 'Réglages', icon: 'admin' },
+  { id: 'admin', label: 'Le resto', icon: 'store' },
   { id: 'aide', label: 'Aide', icon: 'help' },
 ];
 // Sur téléphone, le menu du bas garde l'essentiel.
@@ -83,7 +83,7 @@ function layout(active) {
     </nav>
     <header class="topbar">
       <div class="brandbox"><span class="brand">K-RAMEN</span><span class="muted small">Gestion</span></div>
-      <div class="row" style="gap:4px"><a class="iconbtn" href="#/admin" aria-label="Réglages">${icon('admin', 22)}</a><a class="iconbtn" href="#/aide" aria-label="Aide">${icon('help', 22)}</a><button class="iconbtn" id="logout" type="button" aria-label="Se déconnecter">${icon('logout', 22)}</button></div>
+      <div class="row" style="gap:4px"><a class="iconbtn" href="#/admin" aria-label="Le resto">${icon('store', 22)}</a><a class="iconbtn" href="#/aide" aria-label="Aide">${icon('help', 22)}</a><button class="iconbtn" id="logout" type="button" aria-label="Se déconnecter">${icon('logout', 22)}</button></div>
     </header>
     <main class="content" id="view"></main>
     <nav class="bottomnav" aria-label="Menu">${bottom}</nav>
