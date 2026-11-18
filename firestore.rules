@@ -30,14 +30,17 @@ service cloud.firestore {
       allow create: if (signedIn() && request.auth.uid == uid && !setupDone()
                         && existsAfter(/databases/$(database)/documents/config/setup)
                         && request.resource.data.role == 'admin')
-                    || isAdmin();
+                    || isAdmin()
+                    // Les employés peuvent ajouter un employé (jamais un responsable).
+                    || (active() && request.resource.data.role == 'employe' && request.resource.data.actif == true);
       allow update: if isAdmin();
       allow delete: if false;
     }
 
     match /appareils/{id} {
       allow read: if active();
-      allow create: if isAdmin() || setupBatchAdmin();
+      // Tout le monde peut ajouter ; seule la responsable modifie ou supprime.
+      allow create: if active() || setupBatchAdmin();
       allow update: if isAdmin();
       // L'appli ne propose la suppression que pour un appareil sans aucun relevé.
       allow delete: if isAdmin();
@@ -46,7 +49,8 @@ service cloud.firestore {
     // Tâches du plan de nettoyage : lues par tous, gérées par la responsable.
     match /taches/{id} {
       allow read: if active();
-      allow create, update, delete: if isAdmin();
+      allow create: if active();
+      allow update, delete: if isAdmin();
     }
 
     // Séances de nettoyage (cases cochées, remarques).
@@ -54,14 +58,15 @@ service cloud.firestore {
       allow read: if active();
       allow create, update: if active()
         && request.resource.data.date is string
-        && request.resource.data.seance in ['service', 'jour', 'approfondi'];
+        && request.resource.data.seance in ['service', 'jour', 'approfondi', 'exceptionnel'];
       allow delete: if false;
     }
 
     // Fournisseurs : lus par tous, gérés par la responsable.
     match /fournisseurs/{id} {
       allow read: if active();
-      allow create, update: if isAdmin();
+      allow create: if active();
+      allow update: if isAdmin();
       allow delete: if false;
     }
 
@@ -87,26 +92,45 @@ service cloud.firestore {
     // Catégories de documents ajoutées par l'équipe.
     match /doc_categories/{id} {
       allow read: if active();
-      allow create: if active();
+      allow create: if isAdmin();
       allow update, delete: if isAdmin();
     }
 
-    // Documents (classeur). « prive » = visible seulement par la responsable.
+    // Documents (classeur) : réservés à la responsable.
     match /documents/{id} {
-      allow read: if active() && (resource.data.prive == false || isAdmin());
-      allow create: if active()
-        && request.resource.data.ajoutePar == request.auth.uid
-        && (request.resource.data.prive == false || isAdmin());
-      allow update, delete: if isAdmin();
+      allow read, create, update, delete: if isAdmin();
 
       // Morceaux des fichiers (moins de 1 Mo chacun).
       match /morceaux/{m} {
-        allow read: if active()
-          && (get(/databases/$(database)/documents/documents/$(id)).data.prive == false || isAdmin());
-        allow create: if active();
+        allow read, create: if isAdmin();
         allow update: if false;
         allow delete: if isAdmin();
       }
+    }
+
+    // DLC : préparations (liste des durées) et produits en cours.
+    match /preparations/{id} {
+      allow read, create: if active();
+      allow update, delete: if isAdmin();
+    }
+    match /dlc/{id} {
+      allow read: if active();
+      allow create: if active() && request.resource.data.par == request.auth.uid;
+      allow update: if active();
+      allow delete: if isAdmin();
+    }
+
+    // Liste de courses partagée.
+    match /courses/{id} {
+      allow read, create, update, delete: if active();
+    }
+
+    // Heures : chacun note les siennes (document « <uid>_<date> ») ; la responsable voit tout.
+    match /heures/{id} {
+      allow read: if active() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create, update: if active() && request.resource.data.uid == request.auth.uid
+        && id == request.auth.uid + '_' + request.resource.data.date;
+      allow delete: if active() && (resource.data.uid == request.auth.uid || isAdmin());
     }
 
     match /releves/{id} {

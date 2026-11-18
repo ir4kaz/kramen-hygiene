@@ -1,7 +1,7 @@
 {
-  "name": "K-Ramen Hygiène",
-  "short_name": "Hygiène",
-  "description": "Relevés de températures, nettoyage et traçabilité du restaurant K-Ramen.",
+  "name": "Gestion K-Ramen",
+  "short_name": "K-Ramen",
+  "description": "Gestion du restaurant K-Ramen : hygiène, livraisons, DLC, courses et heures.",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",

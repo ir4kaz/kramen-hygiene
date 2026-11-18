@@ -24,6 +24,7 @@ const tempOk = (cat, t) => {
 
 export function renderReception(view, { sub, session }) {
   if (sub === 'nouvelle') return renderForm(view, session);
+  if (sub === 'achat') return renderForm(view, session, null, 'achat');
   if (sub && sub.startsWith('modifier/')) return renderForm(view, session, sub.slice(9));
   if (sub) return renderDetail(view, sub, session);
   return renderList(view);
@@ -46,7 +47,7 @@ function renderList(view) {
       return `<a class="card rcard" href="#/reception/${esc(r.id)}">
         <span class="rthumb">${thumb ? `<img src="${thumb}" alt="">` : icon('truck', 28)}</span>
         <span class="rinfo">
-          <span class="row between" style="gap:8px"><strong>${esc(r.fournisseurNom || 'Fournisseur ?')}</strong>
+          <span class="row between" style="gap:8px"><strong>${r.type === 'achat' ? '<span class="badge todo">Achat</span> ' : ''}${esc(r.fournisseurNom || 'Fournisseur ?')}</strong>
             ${r.conforme ? '<span class="badge ok">Conforme</span>' : '<span class="badge alert">Non conforme</span>'}</span>
           <span class="small muted">${r.heure ? esc(hhmm(new Date(r.heure))) : ''} · ${esc(r.parNom || '')}${r.photos?.length ? ` · ${r.photos.length} photo${r.photos.length > 1 ? 's' : ''}` : ''}</span>
           ${prods ? `<span class="small">${prods}</span>` : ''}
@@ -59,7 +60,10 @@ function renderList(view) {
           <h1 class="title">Réception</h1>
           <span class="small muted">Livraisons du ${esc(shortDate(dateFromKey(day)))}</span>
         </div>
-        <a class="btn primary" href="#/reception/nouvelle" style="text-decoration:none">${icon('truck', 20)} Nouvelle livraison</a>
+        <div class="row" style="gap:8px;flex-wrap:wrap">
+          <a class="btn primary" href="#/reception/nouvelle" style="text-decoration:none">${icon('truck', 20)} Nouvelle livraison</a>
+          <a class="btn" href="#/reception/achat" style="text-decoration:none;color:inherit">${icon('cart', 20)} Nouvel achat</a>
+        </div>
       </div>
       ${dayPickerHtml(day, true)}
       <div class="stack" style="gap:12px">${cards || '<div class="card pad muted">Aucune livraison enregistrée ce jour-là.</div>'}</div>`;
@@ -86,7 +90,8 @@ function renderList(view) {
 }
 
 // ---------- Nouvelle livraison ----------
-function renderForm(view, session, editId = null) {
+function renderForm(view, session, editId = null, typeInit = 'livraison') {
+  let type = typeInit; // 'livraison' (fournisseur qui livre) ou 'achat' (achat fait soi-même, ex. Metro)
   let day = today();
   let fournisseurs = [];
   let loaded = !editId;
@@ -147,12 +152,12 @@ function renderForm(view, session, editId = null) {
     const opts = fournisseurs.filter((f) => f.actif !== false || f.id === st.fournisseurId).sort((a, b) => a.nom.localeCompare(b.nom))
       .map((f) => `<option value="${esc(f.id)}" ${st.fournisseurId === f.id ? 'selected' : ''}>${esc(f.nom)}</option>`).join('');
     view.innerHTML = `
-      <div class="row" style="gap:8px"><a href="${editId ? `#/reception/${esc(editId)}` : '#/reception'}" class="iconbtn" aria-label="Retour">${icon('back', 24)}</a><h1 class="title">${editId ? 'Modifier la livraison' : 'Nouvelle livraison'}</h1></div>
+      <div class="row" style="gap:8px"><a href="${editId ? `#/reception/${esc(editId)}` : '#/reception'}" class="iconbtn" aria-label="Retour">${icon('back', 24)}</a><h1 class="title">${editId ? (type === 'achat' ? 'Modifier l’achat' : 'Modifier la livraison') : (type === 'achat' ? 'Nouvel achat' : 'Nouvelle livraison')}</h1></div>
       ${dayPickerHtml(day, true)}
       ${pastDayBanner(day)}
       <form id="rf" class="stack" style="gap:16px;max-width:760px" novalidate>
         <section class="card pad stack" style="gap:10px">
-          <label for="fo"><strong>Fournisseur</strong></label>
+          <label for="fo"><strong>${type === 'achat' ? 'Magasin / fournisseur' : 'Fournisseur'}</strong></label>
           <select id="fo" class="select-lg">
             <option value="">— Choisir —</option>${opts}<option value="__autre" ${st.fournisseurId === '__autre' ? 'selected' : ''}>Autre…</option>
           </select>
@@ -160,7 +165,7 @@ function renderForm(view, session, editId = null) {
         </section>
 
         <section class="card pad stack" style="gap:10px">
-          <strong>Photos du bon de livraison et des étiquettes</strong>
+          <strong>${type === 'achat' ? 'Photos du ticket de caisse et des étiquettes' : 'Photos du bon de livraison et des étiquettes'}</strong>
           <div class="photos">${st.existing.map((p, i) => `<div class="ph"><img src="${p.url}" alt="Photo enregistrée ${i + 1}"><button type="button" class="phdel" data-delold="${i}" aria-label="Retirer la photo enregistrée ${i + 1}">✕</button></div>`).join('')}${st.photos.map((p, i) => `<div class="ph"><img src="${p.url}" alt="Photo ${i + 1}"><button type="button" class="phdel" data-delphoto="${i}" aria-label="Retirer la photo ${i + 1}">✕</button></div>`).join('')}</div>
           ${st.photos.length + st.existing.length < MAX_PHOTOS ? `<label class="btn" style="align-self:flex-start">${icon('folder', 20)} Prendre une photo<input type="file" accept="image/*" capture="environment" multiple id="ph" hidden></label>` : `<span class="small muted">${MAX_PHOTOS} photos maximum.</span>`}
           <span class="small muted" id="phstate"></span>
@@ -174,7 +179,7 @@ function renderForm(view, session, editId = null) {
 
         <section class="card pad stack" style="gap:6px">
           <strong>Contrôles</strong>
-          ${CONTROLES.map((c) => `<label class="toggle"><input type="checkbox" data-ctrl="${c.id}" ${st.controles[c.id] ? 'checked' : ''}><span>${c.label}</span></label>`).join('')}
+          ${CONTROLES.filter((c) => type !== 'achat' || c.id !== 'proprete').map((c) => `<label class="toggle"><input type="checkbox" data-ctrl="${c.id}" ${st.controles[c.id] ? 'checked' : ''}><span>${c.label}</span></label>`).join('')}
         </section>
 
         <section class="card pad stack" style="gap:10px">
@@ -182,7 +187,7 @@ function renderForm(view, session, editId = null) {
           <textarea id="rm" rows="3" class="notearea" placeholder="Ex. : carton de poulet refusé, à 9 °C">${esc(st.remarque)}</textarea>
         </section>
 
-        <button type="submit" class="btn primary block" ${busy ? 'disabled' : ''}>${editId ? 'Enregistrer les modifications' : 'Enregistrer la livraison'}</button>
+        <button type="submit" class="btn primary block" ${busy ? 'disabled' : ''}>${editId ? 'Enregistrer les modifications' : (type === 'achat' ? 'Enregistrer l’achat' : 'Enregistrer la livraison')}</button>
       </form>`;
   }
 
@@ -227,7 +232,8 @@ function renderForm(view, session, editId = null) {
       // La température est facultative : sans valeur, le produit n'est pas compté comme un problème.
       produits.push({ nom: p.nom.trim(), cat: p.cat, temp: needT ? t : null, ok: tempOk(p.cat, t) !== false });
     }
-    const conforme = produits.every((p) => p.ok) && CONTROLES.every((c) => st.controles[c.id]);
+    const ctrls = CONTROLES.filter((c) => type !== 'achat' || c.id !== 'proprete');
+    const conforme = produits.every((p) => p.ok) && ctrls.every((c) => st.controles[c.id]);
     busy = true;
     const b = writeBatch(db);
     const rRef = editId ? doc(db, 'receptions', editId) : doc(collection(db, 'receptions'));
@@ -248,7 +254,8 @@ function renderForm(view, session, editId = null) {
       fournisseurId: fId === '__autre' ? null : fId,
       fournisseurNom: fNom,
       produits,
-      controles: { ...st.controles },
+      controles: Object.fromEntries(ctrls.map((c) => [c.id, !!st.controles[c.id]])),
+      type,
       conforme,
       remarque: st.remarque.trim(),
       photos,
@@ -292,6 +299,7 @@ function renderForm(view, session, editId = null) {
       if (!snap.exists()) { view.innerHTML = '<div class="card pad">Livraison introuvable. <a href="#/reception">Retour</a></div>'; return; }
       original = snap.data();
       day = original.date;
+      type = original.type || 'livraison';
       st.fournisseurId = original.fournisseurId || '__autre';
       st.autre = original.fournisseurId ? '' : (original.fournisseurNom || '');
       st.produits = (original.produits || []).map((p) => ({ nom: p.nom || '', cat: p.cat || 'frais', temp: p.temp === null || p.temp === undefined ? '' : String(p.temp).replace('.', ',') }));
@@ -321,7 +329,7 @@ function renderDetail(view, id, session) {
       <td data-label="Produit">${esc(p.nom || '—')}</td><td data-label="Type">${esc(CATEGORIES[p.cat]?.label || '')}</td>
       <td data-label="Température">${p.temp === null || p.temp === undefined ? '—' : `<span class="badge ${p.ok ? 'ok' : 'alert'}">${esc(fmtTemp(p.temp))}</span>`}</td></tr>`).join('');
     view.innerHTML = `
-      <div class="row" style="gap:8px"><a href="#/reception" class="iconbtn" aria-label="Retour">${icon('back', 24)}</a><h1 class="title">${esc(r.fournisseurNom)}</h1></div>
+      <div class="row" style="gap:8px"><a href="#/reception" class="iconbtn" aria-label="Retour">${icon('back', 24)}</a><h1 class="title">${r.type === 'achat' ? 'Achat · ' : ''}${esc(r.fournisseurNom)}</h1></div>
       <div class="row" style="gap:8px;flex-wrap:wrap">
         <a class="btn" href="#/reception/modifier/${esc(id)}" style="text-decoration:none;color:inherit">Modifier</a>
         <button type="button" class="btn" data-delrec style="color:var(--alert)">Supprimer</button>
@@ -332,7 +340,7 @@ function renderDetail(view, id, session) {
       </div>
       <section class="card"><table class="table resp"><thead><tr><th>Produit</th><th>Type</th><th>Température</th></tr></thead><tbody>${prods}</tbody></table></section>
       <section class="card pad stack" style="gap:6px"><strong>Contrôles</strong>
-        ${CONTROLES.map((c) => `<span>${r.controles?.[c.id] ? '✓' : '✗'} ${esc(c.label)}</span>`).join('')}</section>
+        ${CONTROLES.filter((c) => r.controles && c.id in r.controles).map((c) => `<span>${r.controles[c.id] ? '✓' : '✗'} ${esc(c.label)}</span>`).join('')}</section>
       ${r.remarque ? `<section class="card pad stack" style="gap:6px"><strong>Remarque</strong><span>${esc(r.remarque)}</span></section>` : ''}
       <section class="stack" style="gap:10px"><strong>Photos</strong><div class="photos big" id="phs">${(r.photos || []).map(() => '<div class="ph"><span class="muted small">Chargement…</span></div>').join('') || '<span class="muted">Aucune photo.</span>'}</div></section>`;
     view.querySelector('[data-delrec]').addEventListener('click', async () => {

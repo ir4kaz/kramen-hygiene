@@ -21,6 +21,9 @@ const PATHS = {
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17h.01"/>',
   chat: '<path d="M20 11.5a8 8 0 0 1-11.6 7.1L4 20l1.4-4.2A8 8 0 1 1 20 11.5Z"/>',
   sms: '<path d="M4 5h16v11H8l-4 4Z"/><path d="M8 10h8"/>',
+  tag: '<path d="M3 12V4h8l9 9-8 8Z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  cart: '<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M3 4h2l2.5 11h11L21 8H6.5"/>',
+  heures: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5h4"/>',
   backspace: '<path d="M21 5H8l-6 7 6 7h13Z"/><path d="M12 9l6 6"/><path d="M18 9l-6 6"/>',
 };
 
@@ -95,21 +98,21 @@ export const TYPE_ORDER = ['frigo', 'congel', 'saladette', 'chambre', 'autre'];
 
 // ---------- Nettoyage ----------
 export const ZONES = {
-  bar: 'Bar',
+  bar: 'Bar / salle',
   cuisine: 'Cuisine',
-  salle: 'Salle',
-  sanitaires: 'Sanitaires',
-  autre: 'Autre',
 };
-export const ZONE_ORDER = ['bar', 'cuisine', 'salle', 'sanitaires', 'autre'];
+export const ZONE_ORDER = ['bar', 'cuisine'];
+// Anciennes zones (salle, sanitaires…) rangées avec le bar.
+export const zoneOf = (z) => (z === 'cuisine' ? 'cuisine' : 'bar');
 
 // Fréquences des tâches et « séances » correspondantes.
 export const FREQS = {
   service: { label: 'Après chaque service', court: 'Après service' },
   jour: { label: 'Une fois par jour', court: 'Chaque jour' },
-  approfondi: { label: 'Nettoyage approfondi', court: 'Approfondi' },
+  approfondi: { label: 'Nettoyage approfondi (toutes les 2 semaines)', court: 'Approfondi' },
+  exceptionnel: { label: 'Nettoyage exceptionnel (hotte, dégivrage…)', court: 'Exceptionnel' },
 };
-export const FREQ_ORDER = ['service', 'jour', 'approfondi'];
+export const FREQ_ORDER = ['service', 'jour', 'approfondi', 'exceptionnel'];
 
 // Avant 16h : service du midi, après : service du soir.
 export const currentService = (d = new Date()) => (d.getHours() < 16 ? 'midi' : 'soir');
@@ -121,7 +124,7 @@ export const SEED_TACHES = [
   { zone: 'bar', frequence: 'service', nom: 'Points de contact', detail: 'Poignées, interrupteurs, tireuses, caisse.' },
   { zone: 'bar', frequence: 'service', nom: 'Poubelles', detail: 'Vider et remettre un sac.' },
   { zone: 'bar', frequence: 'service', nom: 'Sols', detail: 'Balayer et laver.' },
-  { zone: 'sanitaires', frequence: 'service', nom: 'Sanitaires', detail: 'Nettoyer, désinfecter, recharger papier et savon.' },
+  { zone: 'bar', frequence: 'service', nom: 'Sanitaires', detail: 'Nettoyer, désinfecter, recharger papier et savon.' },
   { zone: 'bar', frequence: 'jour', nom: 'Rincer les citrons', detail: '' },
   { zone: 'bar', frequence: 'jour', nom: 'Désinfecter la menthe', detail: '5 minutes dans le vinaigre.' },
   { zone: 'bar', frequence: 'jour', nom: 'Machine à glaçons', detail: 'Nettoyer et désinfecter au vinaigre.' },
@@ -208,9 +211,13 @@ export const DOC_CATS = {
   nuisibles: { label: 'Lutte contre les nuisibles', prive: false },
   controles: { label: 'Rapports de contrôle', prive: false },
   admin: { label: 'Papiers administratifs', prive: true },
-  contrats: { label: 'Contrats de travail et « qui fait quoi »', prive: true },
+  contrats: { label: 'Contrats de travail', prive: true },
   autre: { label: 'Autres documents', prive: false },
 };
 export const DOC_ORDER = ['pms', 'fiches', 'notices', 'agrement', 'formation', 'nuisibles', 'controles', 'admin', 'contrats', 'autre'];
 
 export const fmtSize = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1).replace('.', ',')} Mo` : `${Math.max(1, Math.round(n / 1024))} Ko`);
+
+// ---------- Dates (DLC) ----------
+export function addDaysKey(key, n) { const d = dateFromKey(key); d.setDate(d.getDate() + n); return today(d); }
+export function daysUntil(key) { return Math.round((dateFromKey(key) - dateFromKey(today())) / 86400000); }

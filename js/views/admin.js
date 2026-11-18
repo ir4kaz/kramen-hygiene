@@ -1,4 +1,4 @@
-// Espace Admin : appareils et employés. Réservé à la responsable.
+// Réglages : appareils, tâches de nettoyage, fournisseurs, employés. Tout le monde ajoute ; la responsable modifie et supprime.
 import { db, firebaseConfig, LOGIN_DOMAIN } from '../firebase.js';
 import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js';
 import {
@@ -29,6 +29,9 @@ async function secondaryAuth() {
 }
 
 export function renderAdmin(view, { sub, session }) {
+  // Tout le monde peut ajouter ; seule la responsable peut modifier, désactiver ou supprimer.
+  const isAdmin = session.user.role === 'admin';
+  const ifAdmin = (html) => (isAdmin ? html : '');
   const tab = ['employes', 'nettoyage', 'fournisseurs'].includes(sub) ? sub : 'appareils';
   let appareils = [];
   let users = [];
@@ -72,8 +75,8 @@ export function renderAdmin(view, { sub, session }) {
           <td>${f.tel ? `<a href="tel:${esc(f.tel)}">${esc(f.tel)}</a>` : ''}${f.tel && f.email ? '<br>' : ''}${f.email ? `<a href="mailto:${esc(f.email)}">${esc(f.email)}</a>` : ''}</td>
           <td>${f.actif === false ? '<span class="badge todo">Désactivé</span>' : '<span class="badge ok">Actif</span>'}</td>
           <td style="white-space:nowrap">
-            <button class="btn small" type="button" data-edit-f="${esc(f.id)}">Modifier</button>
-            <button class="btn small" type="button" data-toggle-f="${esc(f.id)}">${f.actif === false ? 'Réactiver' : 'Désactiver'}</button>
+            ${ifAdmin(`<button class="btn small" type="button" data-edit-f="${esc(f.id)}">Modifier</button>
+            <button class="btn small" type="button" data-toggle-f="${esc(f.id)}">${f.actif === false ? 'Réactiver' : 'Désactiver'}</button>`)}
           </td></tr>`).join('') || '<tr><td colspan="4" class="muted">Aucun fournisseur pour l’instant.</td></tr>'}</tbody>
       </table>
     </div>
@@ -97,9 +100,9 @@ export function renderAdmin(view, { sub, session }) {
             <td>${esc(ZONES[t.zone] || 'Autre')}</td>
             <td>${t.actif === false ? '<span class="badge todo">Désactivée</span>' : '<span class="badge ok">Active</span>'}</td>
             <td style="white-space:nowrap">
-              <button class="btn small" type="button" data-edit-task="${esc(t.id)}">Modifier</button>
+              ${ifAdmin(`<button class="btn small" type="button" data-edit-task="${esc(t.id)}">Modifier</button>
               <button class="btn small" type="button" data-toggle-task="${esc(t.id)}">${t.actif === false ? 'Réactiver' : 'Désactiver'}</button>
-              <button class="btn small" type="button" data-del-task="${esc(t.id)}">Supprimer</button>
+              <button class="btn small" type="button" data-del-task="${esc(t.id)}">Supprimer</button>`)}
             </td></tr>`).join('')}</tbody>
         </table>
       </div>`;
@@ -148,9 +151,9 @@ export function renderAdmin(view, { sub, session }) {
           <td>${esc(rangeLabel(a.min, a.max))}</td>
           <td>${a.actif === false ? '<span class="badge todo">Désactivé</span>' : '<span class="badge ok">Actif</span>'}</td>
           <td style="white-space:nowrap">
-            <button class="btn small" type="button" data-edit="${esc(a.id)}">Modifier</button>
+            ${ifAdmin(`<button class="btn small" type="button" data-edit="${esc(a.id)}">Modifier</button>
             <button class="btn small" type="button" data-toggle-app="${esc(a.id)}">${a.actif === false ? 'Réactiver' : 'Désactiver'}</button>
-            <button class="btn small" type="button" data-del-app="${esc(a.id)}">Supprimer</button>
+            <button class="btn small" type="button" data-del-app="${esc(a.id)}">Supprimer</button>`)}
           </td></tr>`).join('')}</tbody>
       </table>
     </div>
@@ -165,7 +168,7 @@ export function renderAdmin(view, { sub, session }) {
       <div class="form-grid">
         <div class="field"><label for="ep">Prénom</label><input id="ep" required autocapitalize="words" placeholder="ex. Minh"></div>
         <div class="field"><label for="ec">Code (6 chiffres)</label><input id="ec" inputmode="numeric" maxlength="6" pattern="[0-9]*" required></div>
-        <div class="field"><label for="er">Rôle</label><select id="er"><option value="employe">Employé</option><option value="admin">Responsable (accès Admin)</option></select></div>
+        <div class="field"><label for="er">Rôle</label><select id="er"><option value="employe">Employé</option>${ifAdmin('<option value="admin">Responsable</option>')}</select></div>
       </div>
       <p class="small muted" style="margin:0">L’employé se connecte avec son prénom et ce code. Deux personnes avec le même prénom : ajoutez l’initiale du nom (ex. « Minh B »).</p>
       <p class="error hidden" id="eerr"></p>
@@ -178,7 +181,7 @@ export function renderAdmin(view, { sub, session }) {
           <td><strong>${esc(u.prenom)}</strong>${u.id === session.user.uid ? ' <span class="small muted">(vous)</span>' : ''}</td>
           <td>${u.role === 'admin' ? 'Responsable' : 'Employé'}</td>
           <td>${u.actif === false ? '<span class="badge todo">Désactivé</span>' : '<span class="badge ok">Actif</span>'}</td>
-          <td>${u.id === session.user.uid ? '' : `<button class="btn small" type="button" data-toggle-user="${esc(u.id)}">${u.actif === false ? 'Réactiver' : 'Désactiver'}</button>`}</td>
+          <td>${u.id === session.user.uid || !isAdmin ? '' : `<button class="btn small" type="button" data-toggle-user="${esc(u.id)}">${u.actif === false ? 'Réactiver' : 'Désactiver'}</button>`}</td>
         </tr>`).join('')}</tbody>
       </table>
     </div>
@@ -187,7 +190,7 @@ export function renderAdmin(view, { sub, session }) {
 
   function draw() {
     const html = tab === 'appareils' ? appareilsHtml() : tab === 'nettoyage' ? nettoyageHtml() : tab === 'fournisseurs' ? fournisseursHtml() : employesHtml();
-    view.innerHTML = `<h1 class="title">Admin</h1>${tabs()}${html}`;
+    view.innerHTML = `<h1 class="title">Réglages</h1>${tabs()}${html}${isAdmin ? '' : '<p class="small muted" style="margin:0">Vous pouvez ajouter. Pour modifier ou supprimer, demandez à la responsable.</p>'}`;
   }
 
   view.addEventListener('click', async (ev) => {
@@ -301,7 +304,7 @@ export function renderAdmin(view, { sub, session }) {
         const sec = await secondaryAuth();
         const cred = await createUserWithEmailAndPassword(sec, `${slug(prenom)}@${LOGIN_DOMAIN}`, code);
         await setDoc(doc(db, 'users', cred.user.uid), {
-          prenom, role: f.er.value, actif: true, createdAt: serverTimestamp(), createdBy: session.user.uid,
+          prenom, role: isAdmin ? f.er.value : 'employe', actif: true, createdAt: serverTimestamp(), createdBy: session.user.uid,
         });
         await signOut(sec);
         toast(`Compte de ${prenom} créé.`);

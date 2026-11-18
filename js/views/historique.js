@@ -4,7 +4,7 @@ import {
   collection, query, where, onSnapshot,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
-  esc, icon, today, fmtTemp, rangeLabel, hhmm, TYPES, TYPE_ORDER, FREQS, CATEGORIES,
+  esc, icon, today, fmtTemp, rangeLabel, hhmm, TYPES, TYPE_ORDER, FREQS, CATEGORIES, ZONES, ZONE_ORDER, zoneOf,
 } from '../util.js';
 
 const p2 = (n) => String(n).padStart(2, '0');
@@ -43,6 +43,7 @@ export function renderHistorique(view, { session, sub }) {
   let mode = window.matchMedia('(max-width: 899px)').matches ? 'jour' : 'semaine';
   let ref = today();
   let kind = 'temperatures'; // ou 'nettoyage', 'reception'
+  let zone = 'bar'; // nettoyage : bar ou cuisine
   // Lien direct possible : #/historique/<type>/<jour|semaine|mois>/<AAAA-MM-JJ> (utilisé par Documents).
   if (sub) {
     const [k, m, d] = sub.split('/');
@@ -131,12 +132,13 @@ export function renderHistorique(view, { session, sub }) {
   }
 
   function cleanBody(days) {
-    const actives = (f) => taches.filter((t) => t.actif !== false && t.frequence === f).length;
+    const actives = (f) => taches.filter((t) => t.actif !== false && t.frequence === f && zoneOf(t.zone) === zone).length;
     const cols = [
       { key: 'service-midi', label: 'Après service midi', f: 'service' },
       { key: 'service-soir', label: 'Après service soir', f: 'service' },
       { key: 'jour', label: 'Chaque jour', f: 'jour' },
       { key: 'approfondi', label: 'Approfondi', f: 'approfondi' },
+      { key: 'exceptionnel', label: 'Exceptionnel', f: 'exceptionnel' },
     ];
     const map = {};
     for (const n of nets) map[n.id] = n;
@@ -151,14 +153,14 @@ export function renderHistorique(view, { session, sub }) {
     };
     const rows = days.filter((d) => toKey(d) <= today()).reverse().map((d) => {
       const k = toKey(d);
-      const notes = cols.map((c) => map[`${k}_${c.key}`]).filter((n) => n && n.anomalies)
+      const notes = cols.map((c) => map[`${k}_${zone}_${c.key}`]).filter((n) => n && n.anomalies)
         .map((n) => esc(n.anomalies)).join('<br>');
-      return `<tr><th class="app">${esc(fmtDay(d))}</th>${cols.map((c) => cell(map[`${k}_${c.key}`], c.f)).join('')}<td class="cl note">${notes}</td></tr>`;
+      return `<tr><th class="app">${esc(fmtDay(d))}</th>${cols.map((c) => cell(map[`${k}_${zone}_${c.key}`], c.f)).join('')}<td class="cl note">${notes}</td></tr>`;
     }).join('');
     const nbTaches = nets.reduce((s2, n) => s2 + Object.keys(n.items || {}).length, 0);
     const anomalies = nets.filter((n) => n.anomalies).length;
     return {
-      titre: 'Plan de nettoyage',
+      titre: `Plan de nettoyage — ${ZONES[zone]}`,
       resume: `${nbTaches} tâche${nbTaches > 1 ? 's' : ''} cochée${nbTaches > 1 ? 's' : ''} · ${anomalies} remarque${anomalies > 1 ? 's' : ''}. En vert : tout est fait ; en orange : incomplet.`,
       contenu: rows ? `<div class="tablewrap card hist-card"><table class="hist clean">
           <thead><tr><th class="app">Jour</th>${cols.map((c) => `<th class="cl">${c.label}</th>`).join('')}<th class="cl">Anomalies / à reprendre</th></tr></thead>
@@ -178,7 +180,7 @@ export function renderHistorique(view, { session, sub }) {
       const ctrl = Object.values(r.controles || {}).every(Boolean) ? 'OK' : '<span class="txt-alert">Problème</span>';
       return `<tr>
         <td data-label="Date">${esc(fmtDay(fromKey(r.date)))}${r.heure ? ` · ${esc(hhmm(new Date(r.heure)))}` : ''}</td>
-        <td data-label="Fournisseur"><a href="#/reception/${esc(r.id)}">${esc(r.fournisseurNom)}</a></td>
+        <td data-label="Fournisseur"><a href="#/reception/${esc(r.id)}">${r.type === 'achat' ? 'Achat · ' : ''}${esc(r.fournisseurNom)}</a></td>
         <td data-label="Produits">${prods || '—'}</td>
         <td data-label="Contrôles">${ctrl}</td>
         <td data-label="Résultat">${r.conforme ? '<span class="badge ok">Conforme</span>' : '<span class="badge alert">Non conforme</span>'}</td>
@@ -211,6 +213,9 @@ export function renderHistorique(view, { session, sub }) {
         <a href="#" data-kind="nettoyage" class="${kind === 'nettoyage' ? 'on' : ''}">Nettoyage</a>
         <a href="#" data-kind="reception" class="${kind === 'reception' ? 'on' : ''}">Réception</a>
       </div>
+      ${kind === 'nettoyage' ? `<div class="segmented no-print" role="group" aria-label="Zone" style="max-width:320px">
+        ${ZONE_ORDER.map((z) => `<button type="button" data-zone="${z}" class="${zone === z ? 'on' : ''}" aria-pressed="${zone === z}">${ZONES[z]}</button>`).join('')}
+      </div>` : ''}
       <div class="row no-print" style="flex-wrap:wrap;gap:12px">
         <div class="segmented seg3" role="group" aria-label="Période">
           ${['jour', 'semaine', 'mois'].map((m) => `<button type="button" data-mode="${m}" class="${mode === m ? 'on' : ''}" aria-pressed="${mode === m}">${m.charAt(0).toUpperCase()}${m.slice(1)}</button>`).join('')}
@@ -243,6 +248,7 @@ export function renderHistorique(view, { session, sub }) {
     const b = e.target.closest('button');
     if (!b) return;
     if (b.id === 'print') { window.print(); return; }
+    if (b.dataset.zone) { zone = b.dataset.zone; draw(); return; }
     if (b.dataset.mode) { mode = b.dataset.mode; subscribe(); }
     if (b.dataset.shift) { ref = shift(mode, ref, Number(b.dataset.shift)); subscribe(); }
   });

@@ -43,7 +43,7 @@ export async function renderLogin(app) {
   app.innerHTML = `
   <div class="auth">
     <form class="card" id="f" novalidate>
-      <div class="stack" style="gap:2px"><span class="brand">K-RAMEN</span><span class="muted">Hygiène</span></div>
+      <div class="stack" style="gap:2px"><span class="brand">K-RAMEN</span><span class="muted">Gestion</span></div>
       <h1 class="title" style="font-size:24px">Connexion</h1>
       <div class="field"><label for="p">Prénom</label><input id="p" autocomplete="username" autocapitalize="words" required></div>
       <div class="field"><label for="c">Code (6 chiffres)</label><input id="c" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" required></div>
@@ -79,7 +79,7 @@ function renderSetup(app) {
   app.innerHTML = `
   <div class="auth">
     <form class="card" id="f" novalidate>
-      <div class="stack" style="gap:2px"><span class="brand">K-RAMEN</span><span class="muted">Hygiène</span></div>
+      <div class="stack" style="gap:2px"><span class="brand">K-RAMEN</span><span class="muted">Gestion</span></div>
       <h1 class="title" style="font-size:24px">Première installation</h1>
       <p class="muted" style="margin:0">Créez le compte de la responsable. Il pourra ensuite ajouter les employés.</p>
       <div class="field"><label for="p">Prénom de la responsable</label><input id="p" autocapitalize="words" required></div>

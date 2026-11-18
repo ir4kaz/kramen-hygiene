@@ -5,11 +5,12 @@ import {
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
   esc, icon, today, shortDate, hhmm, toast,
-  ZONES, ZONE_ORDER, FREQS, FREQ_ORDER, currentService, SEED_TACHES,
+  ZONES, ZONE_ORDER, zoneOf, FREQS, FREQ_ORDER, currentService, SEED_TACHES,
   dayPickerHtml, pastDayBanner, dateFromKey,
 } from '../util.js';
 
-export const sessionId = (date, seance, service) => (seance === 'service' ? `${date}_service-${service}` : `${date}_${seance}`);
+// Une « séance » = un jour + une zone (bar ou cuisine) + un type de nettoyage.
+export const sessionId = (date, seance, service, zone) => `${date}_${zone}_${seance === 'service' ? `service-${service}` : seance}`;
 
 const daysBetween = (a, b) => {
   const [y1, m1, d1] = a.split('-').map(Number);
@@ -20,6 +21,7 @@ const daysBetween = (a, b) => {
 export function renderNettoyage(view, { session }) {
   let day = today();
   let seance = 'service';
+  let zone = (() => { try { return localStorage.getItem('kr_zone') === 'cuisine' ? 'cuisine' : 'bar'; } catch (e) { return 'bar'; } })();
   let service = currentService();
   let taches = [];
   let sess = null; // document de la séance affichée
@@ -29,8 +31,8 @@ export function renderNettoyage(view, { session }) {
   let editingNote = false;
 
   const isAdmin = session.user.role === 'admin';
-  const ref = () => doc(db, 'nettoyages', sessionId(day, seance, service));
-  const list = () => taches.filter((t) => t.actif !== false && t.frequence === seance)
+  const ref = () => doc(db, 'nettoyages', sessionId(day, seance, service, zone));
+  const list = () => taches.filter((t) => t.actif !== false && t.frequence === seance && zoneOf(t.zone) === zone)
     .sort((a, b) => (ZONE_ORDER.indexOf(a.zone) - ZONE_ORDER.indexOf(b.zone)) || ((a.ordre ?? 0) - (b.ordre ?? 0)));
 
   function saveState() {
@@ -41,7 +43,7 @@ export function renderNettoyage(view, { session }) {
 
   function lastDeepHtml() {
     if (seance !== 'approfondi') return '';
-    const prev = derniers.filter((d) => d.date < day && d.nb > 0).sort((a, b) => b.date.localeCompare(a.date))[0];
+    const prev = derniers.filter((d) => d.zone === zone && d.date < day && d.nb > 0).sort((a, b) => b.date.localeCompare(a.date))[0];
     if (!prev) return '<p class="small muted" style="margin:0">Aucun nettoyage approfondi enregistré avant aujourd’hui.</p>';
     const n = daysBetween(prev.date, day);
     const [y, m, d] = prev.date.split('-').map(Number);
@@ -56,19 +58,17 @@ export function renderNettoyage(view, { session }) {
 
     let body;
     if (!taches.length) {
-      body = isAdmin
+      body = true
         ? `<div class="card pad stack" style="gap:12px"><strong>Aucune tâche de nettoyage pour l’instant.</strong>
-            <span class="muted small">Créez le plan de départ (fiche du bar, entretien après service, citrons, menthe, machine à glaçons). Vous pourrez tout modifier ensuite dans Admin.</span>
+            <span class="muted small">Créez le plan de départ (fiche du bar, entretien après service, citrons, menthe, machine à glaçons). Vous pourrez en ajouter d’autres dans Réglages.</span>
             <button type="button" class="btn primary" data-seed style="align-self:flex-start">Créer le plan de nettoyage de départ</button></div>`
         : '<div class="card pad muted">Aucune tâche de nettoyage. La responsable doit créer le plan dans Admin.</div>';
     } else if (!tl.length) {
-      body = '<div class="card pad muted">Aucune tâche pour cette catégorie.</div>';
+      body = `<div class="card pad muted">Aucune tâche « ${esc(FREQS[seance].court)} » pour ${esc(ZONES[zone])}. Ajoutez-en dans Réglages > Nettoyage.</div>`;
     } else {
-      body = ZONE_ORDER.map((z) => {
-        const zt = tl.filter((t) => (t.zone || 'autre') === z);
-        if (!zt.length) return '';
+      body = [zone].map(() => {
+        const zt = tl;
         return `<section class="group stack">
-          <h2>${esc(ZONES[z])}</h2>
           <div class="card list">${zt.map((t) => {
             const it = items[t.id];
             return `<div class="crow ${it ? 'done' : ''}">
@@ -97,10 +97,13 @@ export function renderNettoyage(view, { session }) {
         <span class="small muted">${esc(shortDate(dateFromKey(day)))}</span>
         <span id="savestate">${saveState()}</span>
       </div>
+      <div class="segmented zonesel" role="group" aria-label="Zone">
+        ${ZONE_ORDER.map((z) => `<button type="button" data-zone="${z}" class="${zone === z ? 'on' : ''}" aria-pressed="${zone === z}">${esc(ZONES[z])}</button>`).join('')}
+      </div>
       ${dayPickerHtml(day, true)}
       ${pastDayBanner(day)}
       <div class="row" style="flex-wrap:wrap;gap:12px">
-        <div class="segmented seg3" role="group" aria-label="Type de nettoyage">${seg}</div>
+        <div class="segmented seg4" role="group" aria-label="Type de nettoyage">${seg}</div>
         ${sub}
       </div>
       ${tl.length ? `<section class="card pad stack" style="gap:10px">
@@ -120,7 +123,7 @@ export function renderNettoyage(view, { session }) {
     const t = taches.find((x) => x.id === id);
     if (!t) return;
     const items = (sess && sess.items) || {};
-    const base = { date: day, seance, service: seance === 'service' ? service : null, updatedAt: serverTimestamp() };
+    const base = { date: day, zone, seance, service: seance === 'service' ? service : null, updatedAt: serverTimestamp() };
     let change;
     if (items[id]) {
       change = { ...base, items: { [id]: deleteField() } };
@@ -144,7 +147,7 @@ export function renderNettoyage(view, { session }) {
     if (!ta) return;
     const anomalies = ta.value.trim();
     setDoc(ref(), {
-      date: day, seance, service: seance === 'service' ? service : null, anomalies, anomaliesPar: session.user.prenom, updatedAt: serverTimestamp(),
+      date: day, zone, seance, service: seance === 'service' ? service : null, anomalies, anomaliesPar: session.user.prenom, updatedAt: serverTimestamp(),
     }, { merge: true }).catch((e) => toast(e.message));
     sess = { ...(sess || {}), anomalies };
     toast('Remarque enregistrée.');
@@ -172,7 +175,11 @@ export function renderNettoyage(view, { session }) {
     if (!b) return;
     if (b.dataset.task) toggle(b.dataset.task);
     else if (b.dataset.day && b.dataset.day !== day) changeDay(b.dataset.day);
-    else if (b.dataset.seance && b.dataset.seance !== seance) { seance = b.dataset.seance; subscribe(); }
+    else if (b.dataset.zone && b.dataset.zone !== zone) {
+      zone = b.dataset.zone;
+      try { localStorage.setItem('kr_zone', zone); } catch (er) { /* rien */ }
+      subscribe();
+    } else if (b.dataset.seance && b.dataset.seance !== seance) { seance = b.dataset.seance; subscribe(); }
     else if (b.dataset.service && b.dataset.service !== service) { service = b.dataset.service; subscribe(); }
     else if (b.hasAttribute('data-note')) saveNote();
     else if (b.hasAttribute('data-seed')) { b.disabled = true; seed(); }
@@ -201,7 +208,7 @@ export function renderNettoyage(view, { session }) {
     if (!editingNote) draw();
   });
   const un2 = onSnapshot(query(collection(db, 'nettoyages'), where('seance', '==', 'approfondi')), (s) => {
-    derniers = s.docs.map((d) => ({ date: d.data().date, nb: Object.keys(d.data().items || {}).length }));
+    derniers = s.docs.map((d) => ({ date: d.data().date, zone: d.data().zone || 'bar', nb: Object.keys(d.data().items || {}).length }));
     if (!editingNote) draw();
   });
   subscribe();

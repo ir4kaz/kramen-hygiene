@@ -55,7 +55,6 @@ function renderList(view, session) {
           <span class="docic">${d.fichiers?.some((x) => x.type === 'pdf') ? '<strong>PDF</strong>' : icon('folder', 22)}</span>
           <span class="rinfo"><strong>${esc(d.titre)}</strong>
             <span class="small muted">${d.date ? esc(shortDate(dateFromKey(d.date))) : ''} · ${esc(d.ajouteParNom || '')} · ${d.fichiers?.length || 0} fichier${(d.fichiers?.length || 0) > 1 ? 's' : ''}</span></span>
-          ${d.prive ? '<span class="badge todo">Responsable</span>' : ''}
         </a>`).join('')}</div>
       </section>`;
     }).join('');
@@ -69,7 +68,7 @@ function renderList(view, session) {
           <span class="rinfo"><strong>${esc(x.nom)}</strong>${x.livre ? `<span class="small muted">${esc(x.livre)}</span>` : ''}
             <span class="small">${x.tel ? `<a href="tel:${esc(x.tel)}">${esc(x.tel)}</a>` : ''}${x.tel && x.email ? ' · ' : ''}${x.email ? `<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>` : ''}</span></span>
         </div>`).join('')}</div>
-        ${isAdmin ? '<a href="#/admin/fournisseurs" class="small">Gérer les fournisseurs dans Admin</a>' : ''}
+        ${isAdmin ? '<a href="#/admin/fournisseurs" class="small">Gérer les fournisseurs dans Réglages</a>' : ''}
       </section>` : '';
 
     // Bons de livraison : les photos prises dans Réception (pas de copie, on renvoie vers la livraison).
@@ -166,7 +165,6 @@ function renderAdd(view, session) {
           <div class="field"><label for="dt">Titre</label><input id="dt" value="${esc(st.titre)}" placeholder="ex. Fiche technique dégraissant Sanet"></div>
           <div class="field"><label for="dc">Catégorie</label><select id="dc">${catOptions(st.categorie, true)}</select></div>
           ${st.categorie === '__new' ? `<div class="field"><label for="dnew">Nom de la nouvelle catégorie</label><input id="dnew" value="${esc(st.nouvelle)}" placeholder="ex. Analyses d’eau, Factures énergie"></div>` : ''}
-          ${isAdmin ? `<label class="toggle"><input type="checkbox" id="dp" ${st.prive ? 'checked' : ''}><span>Visible seulement par la responsable</span></label>` : ''}
         </section>
         <section class="card pad stack" style="gap:10px">
           <strong>Fichiers (photos ou PDF)</strong>
@@ -285,13 +283,12 @@ function renderView(view, id, session) {
     if (!alive) return;
     view.innerHTML = `
       <div class="row" style="gap:8px"><a href="#/documents" class="iconbtn" aria-label="Retour">${icon('back', 24)}</a><h1 class="title">${esc(d.titre)}</h1></div>
-      <span class="muted">${esc(cat(d.categorie).label)} · ajouté le ${esc(shortDate(dateFromKey(d.date)))} par ${esc(d.ajouteParNom || '')}${d.prive ? ' · visible seulement par la responsable' : ''}</span>
+      <span class="muted">${esc(cat(d.categorie).label)} · ajouté le ${esc(shortDate(dateFromKey(d.date)))} par ${esc(d.ajouteParNom || '')}</span>
       ${isAdmin ? `<form class="card pad stack" id="de" style="gap:12px">
         <div class="form-grid">
           <div class="field"><label for="et">Titre</label><input id="et" value="${esc(d.titre)}"></div>
           <div class="field"><label for="ec">Catégorie</label><select id="ec">${catOptions(known(d.categorie) ? d.categorie : 'autre', false)}</select></div>
         </div>
-        <label class="toggle"><input type="checkbox" id="ep" ${d.prive ? 'checked' : ''}><span>Visible seulement par la responsable</span></label>
         <div class="row" style="gap:8px;flex-wrap:wrap"><button type="submit" class="btn small">Enregistrer</button>
           <button type="button" class="btn small" data-deldoc style="color:var(--alert)">Supprimer le document</button></div>
       </form>` : ''}
@@ -301,7 +298,7 @@ function renderView(view, id, session) {
       view.querySelector('#de').addEventListener('submit', (e) => {
         e.preventDefault();
         const f = e.target;
-        updateDoc(doc(db, 'documents', id), { titre: f.et.value.trim() || d.titre, categorie: f.ec.value, prive: f.ep.checked })
+        updateDoc(doc(db, 'documents', id), { titre: f.et.value.trim() || d.titre, categorie: f.ec.value })
           .catch((er) => toast(er.message));
         toast('Document modifié.');
       });

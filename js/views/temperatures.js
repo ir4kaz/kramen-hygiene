@@ -172,7 +172,7 @@ export function renderTemperatures(view, { session }) {
     setDoc(doc(db, 'releves', `${day}_${moment}_${a.id}`), data, { merge: true })
       .catch((e) => { console.error(e); toast('Erreur d’enregistrement. Réessayez.', 4000); });
 
-    if (out) toast(`${a.nom} : trop ${out} ! Prévenez la responsable.`, 4500);
+    if (out) toast(out === 'chaud' ? `${a.nom} : trop chaud ! Déplacez les produits et prévenez la responsable.` : `${a.nom} : trop froid ! Vérifiez le réglage et prévenez la responsable.`, 5500);
 
     // Passe à l'appareil suivant qui n'a pas encore de valeur.
     const map = { ...byApp(), [a.id]: { valeur: value } };

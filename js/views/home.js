@@ -4,15 +4,18 @@ import {
   collection, query, where, onSnapshot,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
-  esc, icon, today, longDate, currentMoment, fmtTemp, rangeLabel, currentService,
+  esc, icon, today, longDate, currentMoment, fmtTemp, rangeLabel, currentService, daysUntil,
 } from '../util.js';
 
 const TILES = [
   { id: 'temperatures', label: 'Températures', icon: 'thermo' },
   { id: 'nettoyage', label: 'Nettoyage', icon: 'clean' },
   { id: 'reception', label: 'Réception', icon: 'truck' },
-  { id: 'documents', label: 'Documents', icon: 'folder' },
-  { id: 'historique', label: 'Historique', icon: 'history', wide: true },
+  { id: 'dlc', label: 'DLC', icon: 'tag' },
+  { id: 'courses', label: 'Courses', icon: 'cart' },
+  { id: 'heures', label: 'Heures', icon: 'heures' },
+  { id: 'documents', label: 'Documents', icon: 'folder', adminOnly: true },
+  { id: 'historique', label: 'Historique', icon: 'history', adminOnly: true },
 ];
 
 export function renderHome(view, { session }) {
@@ -23,6 +26,8 @@ export function renderHome(view, { session }) {
   let taches = [];
   let nets = [];
   let recs = [];
+  let dlcs = [];
+  let courses = [];
   const service = currentService();
 
   function draw() {
@@ -34,9 +39,20 @@ export function renderHome(view, { session }) {
     const alerts = releves.filter((r) => r.horsNorme);
     const reste = total - done;
 
+    // Relevé oublié : le matin à partir de 14h, le soir à partir de 22h (fins de service).
+    const h = new Date().getHours();
+    const nbMoment = (m) => releves.filter((r) => r.moment === m && actifs.some((a) => a.id === r.appareilId)).length;
+    const oublis = [];
+    if (h >= 14 && total && nbMoment('matin') < total) oublis.push(['matin', nbMoment('matin')]);
+    if (h >= 22 && total && nbMoment('soir') < total) oublis.push(['soir', nbMoment('soir')]);
+    const oubliHtml = oublis.map(([m, n]) => `<a href="#/temperatures" class="alertbox" style="text-decoration:none;color:inherit">
+        <span class="ic">${icon('thermo', 22)}</span>
+        <div class="stack" style="gap:2px"><strong>Le relevé du ${m} n’a pas été fait</strong>
+        <span class="small muted">${n} / ${total} appareils relevés. Touchez ici pour le compléter.</span></div></a>`).join('');
+
     const conseil = (r) => (r.sens === 'froid'
-      ? 'Vérifier le réglage du thermostat.'
-      : 'Vérifier la porte et refaire un relevé.');
+      ? 'Vérifier le réglage et prévenir la responsable.'
+      : 'Déplacer les produits et prévenir la responsable.');
     const alertHtml = alerts.length
       ? `<div class="alertbox">
           <span class="ic">${icon('alert', 22)}</span>
@@ -54,10 +70,17 @@ export function renderHome(view, { session }) {
 
     // Nettoyage après le service en cours.
     const tService = taches.filter((t) => t.actif !== false && t.frequence === 'service');
-    const sessNow = nets.find((n) => n.id === `${day}_service-${service}`);
-    const doneClean = tService.filter((t) => sessNow?.items?.[t.id]).length;
+    const doneItems = Object.assign({}, ...nets.filter((n) => n.seance === 'service' && n.service === service).map((n) => n.items || {}));
+    const doneClean = tService.filter((t) => doneItems[t.id]).length;
 
-    const tiles = TILES.map((t) => {
+    const dlcPerimes = dlcs.filter((x) => daysUntil(x.dlc) < 0).length;
+    const dlcBientot = dlcs.filter((x) => { const n = daysUntil(x.dlc); return n >= 0 && n <= 1; }).length;
+    const dlcHtml = (dlcPerimes || dlcBientot) ? `<a href="#/dlc" class="alertbox" style="text-decoration:none;color:inherit">
+        <span class="ic">${icon('tag', 22)}</span>
+        <div class="stack" style="gap:2px"><strong>DLC : ${dlcPerimes ? `${dlcPerimes} périmé${dlcPerimes > 1 ? 's' : ''}` : ''}${dlcPerimes && dlcBientot ? ' · ' : ''}${dlcBientot ? `${dlcBientot} à utiliser aujourd’hui ou demain` : ''}</strong>
+        <span class="small muted">Touchez ici pour voir les produits.</span></div></a>` : '';
+    const isAdmin = session.user.role === 'admin';
+    const tiles = TILES.filter((t) => !t.adminOnly || isAdmin).map((t) => {
       let sub = 'Bientôt disponible';
       let hot = '';
       if (t.id === 'temperatures') {
@@ -68,6 +91,14 @@ export function renderHome(view, { session }) {
       } else if (t.id === 'reception') {
         const nc = recs.filter((r) => !r.conforme).length;
         sub = recs.length ? `${recs.length} livraison${recs.length > 1 ? 's' : ''} aujourd’hui${nc ? ` · ${nc} non conforme${nc > 1 ? 's' : ''}` : ''}` : 'Aucune livraison aujourd’hui';
+      } else if (t.id === 'dlc') {
+        sub = dlcs.length ? `${dlcs.length} produit${dlcs.length > 1 ? 's' : ''} en cours${dlcPerimes ? ` · ${dlcPerimes} périmé${dlcPerimes > 1 ? 's' : ''}` : ''}` : 'Aucun produit en cours';
+        if (dlcPerimes + dlcBientot) hot = '<span class="badge hot">À voir</span>';
+      } else if (t.id === 'courses') {
+        const n = courses.filter((x) => !x.achete).length;
+        sub = n ? `${n} article${n > 1 ? 's' : ''} à acheter` : 'Liste vide';
+      } else if (t.id === 'heures') {
+        sub = session.user.role === 'admin' ? 'Heures de l’équipe' : 'Noter mes heures';
       } else if (t.id === 'documents') {
         sub = 'PMS, fiches, fournisseurs…';
       } else if (t.id === 'historique') {
@@ -90,7 +121,7 @@ export function renderHome(view, { session }) {
           <div class="row between"><strong>Relevés du ${moment}</strong><span style="font-size:22px;font-weight:700">${done} / ${total}</span></div>
           <div class="progress"><div style="width:${pct}%"></div></div>
         </section>
-        <div class="stack">${alertHtml}</div>
+        <div class="stack">${oubliHtml}${dlcHtml}${alertHtml}</div>
       </div>
       <div class="grid2 grid-tiles">${tiles}</div>`;
   }
@@ -116,5 +147,13 @@ export function renderHome(view, { session }) {
     recs = s.docs.map((d) => ({ id: d.id, ...d.data() }));
     draw();
   });
-  return () => { un1(); un2(); un3(); un4(); un5(); };
+  const un6 = onSnapshot(query(collection(db, 'dlc'), where('statut', '==', 'en_cours')), (s) => {
+    dlcs = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+    draw();
+  });
+  const un7 = onSnapshot(collection(db, 'courses'), (s) => {
+    courses = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+    draw();
+  });
+  return () => { un1(); un2(); un3(); un4(); un5(); un6(); un7(); };
 }

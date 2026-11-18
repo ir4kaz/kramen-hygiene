@@ -13,6 +13,9 @@ import { renderAide } from './views/aide.js';
 import { renderNettoyage } from './views/nettoyage.js';
 import { renderReception } from './views/reception.js';
 import { renderDocuments } from './views/documents.js';
+import { renderDlc } from './views/dlc.js';
+import { renderCourses } from './views/courses.js';
+import { renderHeures } from './views/heures.js';
 
 const app = document.getElementById('app');
 
@@ -24,9 +27,12 @@ const NAV = [
   { id: 'temperatures', label: 'Températures', icon: 'thermo' },
   { id: 'nettoyage', label: 'Nettoyage', icon: 'clean' },
   { id: 'reception', label: 'Réception', icon: 'truck' },
-  { id: 'documents', label: 'Documents', icon: 'folder' },
-  { id: 'historique', label: 'Historique', icon: 'history' },
-  { id: 'admin', label: 'Admin', icon: 'admin', adminOnly: true },
+  { id: 'dlc', label: 'DLC', icon: 'tag' },
+  { id: 'courses', label: 'Courses', icon: 'cart' },
+  { id: 'heures', label: 'Heures', icon: 'heures' },
+  { id: 'documents', label: 'Documents', icon: 'folder', adminOnly: true },
+  { id: 'historique', label: 'Historique', icon: 'history', adminOnly: true },
+  { id: 'admin', label: 'Réglages', icon: 'admin' },
   { id: 'aide', label: 'Aide', icon: 'help' },
 ];
 // Sur téléphone, le menu du bas garde l'essentiel.
@@ -38,6 +44,9 @@ const ROUTES = {
   nettoyage: renderNettoyage,
   reception: renderReception,
   documents: renderDocuments,
+  dlc: renderDlc,
+  courses: renderCourses,
+  heures: renderHeures,
   historique: renderHistorique,
   aide: renderAide,
   admin: renderAdmin,
@@ -59,7 +68,7 @@ function layout(active) {
   return `
   <div class="layout">
     <nav class="sidenav" aria-label="Menu">
-      <div class="brandbox"><span class="brand">K-RAMEN</span><span class="muted small">Hygiène</span></div>
+      <div class="brandbox"><span class="brand">K-RAMEN</span><span class="muted small">Gestion</span></div>
       ${side}
       <div class="who">
         <strong>${esc(session.user?.prenom)}</strong>
@@ -67,8 +76,8 @@ function layout(active) {
       </div>
     </nav>
     <header class="topbar">
-      <div class="brandbox"><span class="brand">K-RAMEN</span><span class="muted small">Hygiène</span></div>
-      <div class="row" style="gap:4px">${isAdmin ? `<a class="iconbtn" href="#/admin" aria-label="Admin">${icon('admin', 22)}</a>` : ''}<a class="iconbtn" href="#/aide" aria-label="Aide">${icon('help', 22)}</a><button class="iconbtn" id="logout" type="button" aria-label="Se déconnecter">${icon('logout', 22)}</button></div>
+      <div class="brandbox"><span class="brand">K-RAMEN</span><span class="muted small">Gestion</span></div>
+      <div class="row" style="gap:4px"><a class="iconbtn" href="#/admin" aria-label="Réglages">${icon('admin', 22)}</a><a class="iconbtn" href="#/aide" aria-label="Aide">${icon('help', 22)}</a><button class="iconbtn" id="logout" type="button" aria-label="Se déconnecter">${icon('logout', 22)}</button></div>
     </header>
     <main class="content" id="view"></main>
     <nav class="bottomnav" aria-label="Menu">${bottom}</nav>
@@ -80,7 +89,9 @@ async function route() {
   if (cleanup) { try { cleanup(); } catch (e) { /* rien */ } cleanup = null; }
   const { id, sub } = currentRoute();
   const isAdmin = session.user.role === 'admin';
-  const target = (id === 'admin' && !isAdmin) ? 'accueil' : id;
+  // Documents et Historique : réservés à la responsable.
+  const reserved = NAV.find((n) => n.id === id)?.adminOnly;
+  const target = (reserved && !isAdmin) ? 'accueil' : id;
   app.innerHTML = layout(target);
   for (const b of app.querySelectorAll('#logout, #logout2')) {
     b.addEventListener('click', async () => { await signOut(auth); location.hash = ''; });
