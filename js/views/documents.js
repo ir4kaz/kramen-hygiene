@@ -52,7 +52,7 @@ function renderList(view, session) {
       return `<section class="stack" style="gap:8px">
         <h2 style="font-size:15px">${esc(cat(c).label)} <span class="muted small">(${list.length})</span></h2>
         <div class="card list">${list.map((d) => `<a class="docrow" href="#/documents/${esc(d.id)}">
-          <span class="docic">${d.fichiers?.some((x) => x.type === 'pdf') ? '<strong>PDF</strong>' : icon('folder', 22)}</span>
+          <span class="docic">${icon('file', 22)}</span>
           <span class="rinfo"><strong>${esc(d.titre)}</strong>
             <span class="small muted">${d.date ? esc(shortDate(dateFromKey(d.date))) : ''} · ${esc(d.ajouteParNom || '')} · ${d.fichiers?.length || 0} fichier${(d.fichiers?.length || 0) > 1 ? 's' : ''}</span></span>
         </a>`).join('')}</div>
@@ -91,7 +91,7 @@ function renderList(view, session) {
     const hHtml = hRows.length ? `<section class="stack" style="gap:8px">
         <h2 style="font-size:15px">Historiques (relevés, nettoyage, livraisons)</h2>
         <div class="card list">${hRows.map((x) => `<a class="docrow" href="#/historique/${x.k}/mois/${key(x.d)}">
-          <span class="docic">${icon('history', 22)}</span>
+          <span class="docic">${icon('file', 22)}</span>
           <span class="rinfo"><strong>${esc(x.l)} — ${MOIS[x.d.getMonth()]} ${x.d.getFullYear()}</strong>
             <span class="small muted">Ouvrir, puis « Exporter en PDF »</span></span>
         </a>`).join('')}</div>
@@ -160,11 +160,11 @@ function renderAdd(view, session) {
           <strong>Fichiers (photos ou PDF)</strong>
           <span class="small muted">Plusieurs photos = plusieurs pages d’un même document. ${MAX_FILES} fichiers et ${fmtSize(MAX_TOTAL)} maximum.</span>
           <div class="stack" style="gap:6px">${st.files.map((x, i) => `<div class="row between card pad" style="padding:10px 12px">
-            <span class="row" style="gap:10px;min-width:0">${x.type === 'image' ? `<img src="${x.url}" alt="" class="minithumb">` : '<span class="docic"><strong>PDF</strong></span>'}
+            <span class="row" style="gap:10px;min-width:0">${x.type === 'image' ? `<img src="${x.url}" alt="" class="minithumb">` : `<span class="docic">${icon('file', 22)}</span>`}
               <span class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.nom)} · ${esc(fmtSize(x.bytes.length))}</span></span>
             <button type="button" class="btn small" data-delfile="${i}">Retirer</button></div>`).join('')}</div>
           ${st.files.length < MAX_FILES ? `<div class="row" style="gap:8px;flex-wrap:wrap">
-            <label class="btn">${icon('folder', 20)} Prendre une photo<input type="file" accept="image/*" capture="environment" multiple id="fcam" hidden></label>
+            <label class="btn">${icon('camera', 20)} Prendre une photo<input type="file" accept="image/*" capture="environment" multiple id="fcam" hidden></label>
             <label class="btn">Choisir un fichier (photo ou PDF)<input type="file" accept="image/*,application/pdf" multiple id="ffile" hidden></label>
           </div>` : ''}
           <span class="small muted" id="fstate">${st.files.length ? `Total : ${esc(fmtSize(total))}` : ''}</span>

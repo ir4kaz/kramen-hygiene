@@ -1,11 +1,12 @@
 // Accueil : avancement des relevés, alertes, accès rapides.
 import { db } from '../firebase.js';
 import { stockEtat } from './stock.js';
+import { seanceLabel } from './nettoyage.js';
 import {
   collection, query, where, onSnapshot,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
-  esc, icon, today, longDate, currentMoment, fmtTemp, rangeLabel, currentService, daysUntil,
+  esc, icon, today, longDate, shortDate, dateFromKey, ZONES, currentMoment, fmtTemp, rangeLabel, currentService, daysUntil,
 } from '../util.js';
 
 const TILES = [
@@ -31,6 +32,7 @@ export function renderHome(view, { session }) {
   let dlcs = [];
   let courses = [];
   let stock = [];
+  let aFaire = [];
   const service = currentService();
 
   function draw() {
@@ -82,6 +84,13 @@ export function renderHome(view, { session }) {
         <span class="ic">${icon('tag', 22)}</span>
         <div class="stack" style="gap:2px"><strong>DLC : ${dlcPerimes ? `${dlcPerimes} périmé${dlcPerimes > 1 ? 's' : ''}` : ''}${dlcPerimes && dlcBientot ? ' · ' : ''}${dlcBientot ? `${dlcBientot} à utiliser aujourd’hui ou demain` : ''}</strong>
         <span class="small muted">Touchez ici pour voir les produits.</span></div></a>` : '';
+    const urg = aFaire.filter((x) => !x.fait && x.date <= day).sort((a, b) => a.date.localeCompare(b.date));
+    const urgHtml = urg.length ? `<a href="#/nettoyage" class="alertbox" style="text-decoration:none;color:inherit">
+        <span class="ic">${icon('clean', 22)}</span>
+        <div class="stack" style="gap:4px"><strong>Nettoyage à faire absolument (${urg.length})</strong>
+        ${urg.slice(0, 5).map((x) => `<span class="small">${esc(x.nom)} <span class="muted">· ${esc(ZONES[x.zone] || x.zone)} · ${esc(seanceLabel(x))}${x.date < day ? ` · <span class="txt-alert">prévu le ${esc(shortDate(dateFromKey(x.date)))}</span>` : ''}</span></span>`).join('')}
+        ${urg.length > 5 ? `<span class="small muted">et ${urg.length - 5} autre${urg.length - 5 > 1 ? 's' : ''}…</span>` : ''}
+        <span class="small muted">Touchez ici pour les cocher.</span></div></a>` : '';
     const isAdmin = session.user.role === 'admin';
     const tiles = TILES.filter((t) => !t.adminOnly || isAdmin).map((t) => {
       let sub = 'Bientôt disponible';
@@ -91,6 +100,7 @@ export function renderHome(view, { session }) {
         if (reste > 0) hot = '<span class="badge hot">À faire</span>';
       } else if (t.id === 'nettoyage') {
         sub = tService.length ? `Service du ${service} : ${doneClean} / ${tService.length}` : 'Plan à créer';
+        if (urg.length) hot = '<span class="badge hot">À faire</span>';
       } else if (t.id === 'reception') {
         const nc = recs.filter((r) => !r.conforme).length;
         sub = recs.length ? `${recs.length} livraison${recs.length > 1 ? 's' : ''} aujourd’hui${nc ? ` · ${nc} non conforme${nc > 1 ? 's' : ''}` : ''}` : 'Aucune livraison aujourd’hui';
@@ -128,7 +138,7 @@ export function renderHome(view, { session }) {
           <div class="row between"><strong>Relevés du ${moment}</strong><span style="font-size:22px;font-weight:700">${done} / ${total}</span></div>
           <div class="progress"><div style="width:${pct}%"></div></div>
         </section>
-        <div class="stack">${oubliHtml}${dlcHtml}${alertHtml}</div>
+        <div class="stack">${urgHtml}${oubliHtml}${dlcHtml}${alertHtml}</div>
       </div>
       <div class="grid2 grid-tiles">${tiles}</div>`;
   }
@@ -166,5 +176,9 @@ export function renderHome(view, { session }) {
     stock = s.docs.map((d) => ({ id: d.id, ...d.data() }));
     draw();
   });
-  return () => { un1(); un2(); un3(); un4(); un5(); un6(); un7(); un8(); };
+  const un9 = onSnapshot(query(collection(db, 'a_faire'), where('fait', '==', false)), (s) => {
+    aFaire = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+    draw();
+  });
+  return () => { un1(); un2(); un3(); un4(); un5(); un6(); un7(); un8(); un9(); };
 }

@@ -379,3 +379,17 @@ details summary { cursor: pointer; color: var(--accent); }
 .stockrow .info { flex: 1 1 auto; min-width: 0; }
 .linkbtn { white-space: nowrap; }
 .iconbtn.editmini { width: 36px; height: 36px; color: var(--muted); }
+
+/* Nettoyage : tâches « à faire absolument » */
+.crow.urgent { background: #FDF3F4; }
+.crow.planned { background: #FDF3F4; }
+.checkbtn.plan { font-size: 24px; font-weight: 800; color: #fff; }
+.checkbtn.plan[aria-pressed="true"] { background: var(--alert); border-color: var(--alert); }
+.linkrow { display: block; width: 100%; text-align: left; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 44px; font: inherit; color: inherit; cursor: pointer; }
+.linkrow:hover { border-color: var(--accent); }
+/* DLC : explications */
+.howto { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.howto > div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start; }
+.howto .num { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; display: grid; place-items: center; }
+@media (max-width: 600px) { .howto { grid-template-columns: 1fr; } }
+.sectiontitle .num { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 14px; margin-right: 6px; vertical-align: 2px; }

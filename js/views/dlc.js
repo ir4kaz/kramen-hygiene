@@ -46,18 +46,18 @@ export function renderDlc(view, { session }) {
     const list = preps.filter((p) => p.actif !== false).sort((a, b) => a.nom.localeCompare(b.nom));
     const autre = st.prepId === '__autre' || !list.length;
     return `<form id="xf" class="card pad stack" style="gap:14px" novalidate>
-      <strong>Nouveau produit</strong>
-      <div class="field"><label for="xp">Produit</label>
+      <strong>J’ai fait ou ouvert un produit</strong>
+      <div class="field"><label for="xp">Quel produit ?</label>
         <select id="xp" class="select-lg">
           ${list.length ? '<option value="">— Choisir —</option>' : ''}
           ${list.map((p) => `<option value="${esc(p.id)}" ${st.prepId === p.id ? 'selected' : ''}>${esc(p.nom)} (${p.jours} j)</option>`).join('')}
-          <option value="__autre" ${autre ? 'selected' : ''}>Autre produit…</option>
+          <option value="__autre" ${autre ? 'selected' : ''}>Autre (pas dans la liste)…</option>
         </select></div>
       ${autre ? `<div class="form-grid">
         <div class="field"><label for="xn">Nom du produit</label><input id="xn" value="${esc(st.nom)}" placeholder="ex. Bouillon tonkotsu"></div>
         <div class="field"><label for="xj">Se garde (jours)</label><input id="xj" inputmode="numeric" value="${esc(st.jours)}" placeholder="ex. 3"></div>
       </div>
-      <label class="toggle"><input type="checkbox" id="xg" ${st.garder ? 'checked' : ''}><span>Ajouter aussi aux préparations</span></label>` : ''}
+      <label class="toggle"><input type="checkbox" id="xg" ${st.garder ? 'checked' : ''}><span>Retenir cette durée pour la prochaine fois</span></label>` : ''}
       <div class="form-grid">
         <div class="field"><label for="xd">Fait / ouvert le</label><input id="xd" type="date" max="${today()}" value="${esc(st.faitLe)}"></div>
         <div class="field"><label for="xl">Date limite (DLC)</label><input id="xl" type="date" value="${esc(st.dlc)}"></div>
@@ -79,12 +79,16 @@ export function renderDlc(view, { session }) {
     const plist = [...preps].sort((a, b) => a.nom.localeCompare(b.nom));
     view.innerHTML = `
       <h1 class="title">DLC</h1>
+      <div class="howto">
+        <div><span class="num">1</span><span class="small"><strong>Une seule fois :</strong> notez en bas combien de jours se garde chaque recette (sauce, bouillon, kimchi…).</span></div>
+        <div><span class="num">2</span><span class="small"><strong>À chaque fois</strong> que vous faites ou ouvrez un produit, ajoutez-le dans « Au frigo » : la date limite se calcule toute seule.</span></div>
+      </div>
 
       <section class="dlc-block stack" style="gap:12px">
         <div class="row between" style="flex-wrap:wrap;gap:8px">
-          <div class="stack" style="gap:2px"><h2 class="sectiontitle">Produits en cours</h2>
-            <span class="small muted">Faits maison ou ouverts, avec leur date limite.</span></div>
-          ${showForm ? '' : '<button type="button" class="btn primary" data-openform>+ Nouveau produit</button>'}
+          <div class="stack" style="gap:2px"><h2 class="sectiontitle">${icon('box', 20)} Au frigo en ce moment</h2>
+            <span class="small muted">Les bacs et pots faits ou ouverts, avec leur date limite. Quand c’est fini, touchez « Utilisé » ou « Jeté ».</span></div>
+          ${showForm ? '' : '<button type="button" class="btn primary" data-openform>+ J’ai fait / ouvert un produit</button>'}
         </div>
         ${showForm ? formHtml() : ''}
         ${perimes ? `<div class="alertbox"><span class="ic">${icon('alert', 22)}</span><div><strong>${perimes} produit${perimes > 1 ? 's' : ''} périmé${perimes > 1 ? 's' : ''}</strong><br><span class="small muted">À jeter, puis touchez « Jeté ».</span></div></div>` : ''}
@@ -101,14 +105,14 @@ export function renderDlc(view, { session }) {
               <button type="button" class="btn small" data-fin="jete" data-id="${esc(x.id)}">Jeté</button>
             </div>
           </div>`).join('')}</div>`
-          : '<div class="card pad muted">Aucun produit en cours.</div>'}
+          : '<div class="card pad muted">Rien au frigo pour l’instant.</div>'}
       </section>
 
       <section class="dlc-block alt stack" style="gap:12px">
-        <div class="stack" style="gap:2px"><h2 class="sectiontitle">${icon('tag', 20)} Préparations et durées de conservation</h2>
-          <span class="small muted">La liste sert à calculer la date limite automatiquement.</span></div>
+        <div class="stack" style="gap:2px"><h2 class="sectiontitle">${icon('tag', 20)} Combien de jours ça se garde</h2>
+          <span class="small muted">La liste de vos recettes et leur durée de conservation. À remplir une fois : elle ne change pas tous les jours.</span></div>
         <form id="pf" class="card pad stack" style="gap:12px">
-          <strong>${ep ? `Modifier « ${esc(ep.nom)} »` : 'Ajouter une préparation'}</strong>
+          <strong>${ep ? `Modifier « ${esc(ep.nom)} »` : 'Ajouter une recette'}</strong>
           <div class="form-grid">
             <div class="field"><label for="pn">Nom</label><input id="pn" value="${esc(ep?.nom || '')}" placeholder="ex. Kimchi maison"></div>
             <div class="field"><label for="pj">Se garde (jours)</label><input id="pj" inputmode="numeric" value="${esc(ep?.jours ?? '')}" placeholder="ex. 5"></div>
@@ -121,7 +125,7 @@ export function renderDlc(view, { session }) {
             <button class="iconbtn" type="button" data-editprep="${esc(p.id)}" aria-label="Modifier ${esc(p.nom)}">✎</button>
             <button class="iconbtn" type="button" data-delprep="${esc(p.id)}" aria-label="Supprimer ${esc(p.nom)}">✕</button>
           </div>`).join('')}</div>`
-          : '<div class="card pad muted">Aucune préparation. Ajoutez vos sauces, bouillons, kimchi…</div>'}
+          : '<div class="card pad muted">Aucune recette. Ajoutez vos sauces, bouillons, kimchi…</div>'}
       </section>`;
   }
 
@@ -173,7 +177,7 @@ export function renderDlc(view, { session }) {
         nom, prepId: p ? p.id : null, faitLe: st.faitLe, dlc: st.dlc, remarque: st.remarque.trim(),
         statut: 'en_cours', par: session.user.uid, parNom: session.user.prenom, at: serverTimestamp(),
       }).catch((er) => toast(`Erreur : ${er.message}`, 5000));
-      toast('Produit enregistré.');
+      toast('Ajouté au frigo.');
       showForm = false;
       draw();
     } else if (f.id === 'pf') {
@@ -183,7 +187,7 @@ export function renderDlc(view, { session }) {
       if (!nom || !Number.isFinite(jours) || jours < 0) { toast('Indiquez le nom et le nombre de jours.'); return; }
       if (editingPrep) updateDoc(doc(db, 'preparations', editingPrep), { nom, jours }).catch((er) => toast(er.message));
       else addDoc(collection(db, 'preparations'), { nom, jours, actif: true, par: session.user.uid, createdAt: serverTimestamp() }).catch((er) => toast(er.message));
-      toast(editingPrep ? 'Préparation modifiée.' : 'Préparation ajoutée.');
+      toast(editingPrep ? 'Recette modifiée.' : 'Recette ajoutée.');
       editingPrep = null;
       draw();
     }

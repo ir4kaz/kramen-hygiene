@@ -61,6 +61,11 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Nettoyage « à faire absolument » (prévu à l'avance) : géré par tout le monde.
+    match /a_faire/{id} {
+      allow read, create, update, delete: if active();
+    }
+
     // Fournisseurs : lus par tous, gérés par la responsable.
     match /fournisseurs/{id} {
       allow read, create, update, delete: if active();

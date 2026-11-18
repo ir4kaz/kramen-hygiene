@@ -1,12 +1,12 @@
 // Nettoyage : cocher les tâches après chaque service, chaque jour et lors du nettoyage approfondi.
 import { db } from '../firebase.js';
 import {
-  collection, query, where, onSnapshot, doc, setDoc, deleteField, serverTimestamp, writeBatch,
+  collection, query, where, onSnapshot, doc, setDoc, updateDoc, deleteDoc, deleteField, serverTimestamp, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 import {
   esc, icon, today, shortDate, hhmm, toast,
   ZONES, ZONE_ORDER, zoneOf, FREQS, FREQ_ORDER, currentService, SEED_TACHES,
-  dayPickerHtml, pastDayBanner, dateFromKey,
+  dayPickerHtml, pastDayBanner, dateFromKey, longDate, addDaysKey,
 } from '../util.js';
 
 // Une « séance » = un jour + une zone (bar ou cuisine) + un type de nettoyage.
@@ -17,6 +17,11 @@ const daysBetween = (a, b) => {
   const [y2, m2, d2] = b.split('-').map(Number);
   return Math.round((new Date(y2, m2 - 1, d2) - new Date(y1, m1 - 1, d1)) / 86400000);
 };
+
+// « À faire absolument » : une tâche cochée sur un jour à venir devient une obligation pour ce jour-là.
+// Elle s'affiche en alerte (accueil + nettoyage) jusqu'à ce qu'elle soit faite, même si le jour est passé.
+export const aFaireId = (date, seance, service, zone, tacheId) => `${sessionId(date, seance, service, zone)}__${tacheId}`;
+export const seanceLabel = (x) => (x.seance === 'service' ? `après le service du ${x.service}` : FREQS[x.seance]?.court.toLowerCase() || x.seance);
 
 export function renderNettoyage(view, { session }) {
   let day = today();
@@ -29,6 +34,8 @@ export function renderNettoyage(view, { session }) {
   let pending = false;
   let unSess = null;
   let editingNote = false;
+  let aFaire = []; // toutes les tâches « à faire absolument »
+  const isFuture = () => day > today();
 
   const isAdmin = session.user.role === 'admin';
   const ref = () => doc(db, 'nettoyages', sessionId(day, seance, service, zone));
@@ -52,7 +59,12 @@ export function renderNettoyage(view, { session }) {
 
   function draw() {
     const items = (sess && sess.items) || {};
-    const tl = list();
+    const fut = isFuture();
+    // Tâches « à faire absolument » qui concernent l'écran affiché.
+    const sameSess = (x) => x.zone === zone && x.seance === seance && (seance !== 'service' || x.service === service);
+    const prevues = new Set(aFaire.filter((x) => !x.fait && x.date === day && sameSess(x)).map((x) => x.tacheId));
+    const urgentes = new Set(aFaire.filter((x) => !x.fait && x.date <= day && sameSess(x)).map((x) => x.tacheId));
+    const tl = list().sort((a, b) => (fut ? 0 : (urgentes.has(b.id) - urgentes.has(a.id))));
     const done = tl.filter((t) => items[t.id]).length;
     const pct = tl.length ? Math.round((done / tl.length) * 100) : 0;
 
@@ -70,11 +82,24 @@ export function renderNettoyage(view, { session }) {
         const zt = tl;
         return `<section class="group stack">
           <div class="card list">${zt.map((t) => {
+            if (fut) {
+              const on = prevues.has(t.id);
+              return `<div class="crow ${on ? 'planned' : ''}">
+              <button type="button" class="checkbtn plan" data-task="${esc(t.id)}" aria-pressed="${on}" aria-label="${on ? 'Retirer' : 'Rendre obligatoire'} : ${esc(t.nom)}">${on ? '!' : ''}</button>
+              <div class="info">
+                <span class="nm">${esc(t.nom)}</span>
+                ${t.detail ? `<span class="small muted">${esc(t.detail)}</span>` : ''}
+                ${on ? '<span class="badge alert">À faire absolument</span>' : ''}
+              </div>
+            </div>`;
+            }
             const it = items[t.id];
-            return `<div class="crow ${it ? 'done' : ''}">
+            const urg = !it && urgentes.has(t.id);
+            return `<div class="crow ${it ? 'done' : ''} ${urg ? 'urgent' : ''}">
               <button type="button" class="checkbtn" data-task="${esc(t.id)}" aria-pressed="${it ? 'true' : 'false'}" aria-label="${it ? 'Décocher' : 'Cocher'} : ${esc(t.nom)}">${it ? icon('check', 26) : ''}</button>
               <div class="info">
                 <span class="nm">${esc(t.nom)}</span>
+                ${urg ? '<span class="badge alert">À faire absolument</span>' : ''}
                 ${t.detail ? `<span class="small muted">${esc(t.detail)}</span>` : ''}
                 ${it ? `<span class="small" style="color:var(--ok)">Fait par ${esc(it.parNom)} à ${esc(hhmm(new Date(it.at)))}</span>` : ''}
               </div>
@@ -100,28 +125,88 @@ export function renderNettoyage(view, { session }) {
       <div class="segmented zonesel" role="group" aria-label="Zone">
         ${ZONE_ORDER.map((z) => `<button type="button" data-zone="${z}" class="${zone === z ? 'on' : ''}" aria-pressed="${zone === z}">${esc(ZONES[z])}</button>`).join('')}
       </div>
-      ${dayPickerHtml(day, true)}
-      ${pastDayBanner(day)}
+      ${dayPickerHtml(day, true, true)}
+      ${fut ? `<div class="warnbox"><strong>Vous préparez le ${esc(longDate(dateFromKey(day)))}.</strong><br>
+        <span class="small">Touchez une tâche pour la rendre <strong>« à faire absolument »</strong> ce jour-là. Elle s’affichera en alerte sur l’accueil jusqu’à ce qu’elle soit faite.</span></div>` : pastDayBanner(day)}
+      ${resteHtml()}
       <div class="row" style="flex-wrap:wrap;gap:12px">
         <div class="segmented seg4" role="group" aria-label="Type de nettoyage">${seg}</div>
         ${sub}
       </div>
-      ${tl.length ? `<section class="card pad stack" style="gap:10px">
+      ${tl.length && fut ? `<section class="card pad"><strong>${esc(titre)} : ${prevues.size} tâche${prevues.size > 1 ? 's' : ''} à faire absolument</strong></section>` : ''}
+      ${tl.length && !fut ? `<section class="card pad stack" style="gap:10px">
         <div class="row between"><strong>${esc(titre)}</strong><span style="font-size:20px;font-weight:700">${done} / ${tl.length}</span></div>
         <div class="progress"><div style="width:${pct}%"></div></div>
         ${lastDeepHtml()}
       </section>` : ''}
       <div class="clean-groups">${body}</div>
-      ${tl.length ? `<section class="card pad stack" style="gap:10px">
+      ${tl.length && !fut ? `<section class="card pad stack" style="gap:10px">
         <label for="note"><strong>Anomalies / tâches à reprendre</strong></label>
         <textarea id="note" rows="3" class="notearea" placeholder="Ex. : joint du frigo à boissons abîmé, plus de produit vaisselle…">${esc(sess?.anomalies || '')}</textarea>
         <div><button type="button" class="btn small" data-note>Enregistrer la remarque</button></div>
       </section>` : ''}`;
   }
 
+  // Encadré : toutes les tâches « à faire absolument » en attente (toutes zones et types), pour s'y rendre d'un geste.
+  function resteHtml() {
+    const fut = isFuture();
+    const l = aFaire.filter((x) => !x.fait && (fut ? x.date === day : x.date <= day))
+      .sort((a, b) => a.date.localeCompare(b.date) || a.zone.localeCompare(b.zone));
+    if (!l.length) return '';
+    return `<div class="alertbox"><span class="ic">${icon('alert', 22)}</span><div class="stack" style="gap:8px;flex:1">
+      <strong>${fut ? 'Prévu ce jour-là' : 'À faire absolument'} (${l.length})</strong>
+      ${l.map((x) => `<button type="button" class="linkrow" data-goto="${esc(x.id)}">
+        <strong>${esc(x.nom)}</strong> <span class="small muted">· ${esc(ZONES[x.zone] || x.zone)} · ${esc(seanceLabel(x))}${x.date < day ? ` · <span class="txt-alert">prévu le ${esc(shortDate(dateFromKey(x.date)))}</span>` : ''}</span>
+      </button>`).join('')}
+    </div></div>`;
+  }
+
+  function goTo(id) {
+    const x = aFaire.find((a) => a.id === id); if (!x) return;
+    if (x.date > day) day = x.date;
+    zone = x.zone; seance = x.seance; if (x.service) service = x.service;
+    try { localStorage.setItem('kr_zone', zone); } catch (er) { /* rien */ }
+    subscribe();
+    window.scrollTo(0, 0);
+  }
+
+  function togglePlan(t) {
+    const id = aFaireId(day, seance, service, zone, t.id);
+    const ex = aFaire.find((x) => x.id === id);
+    if (ex && !ex.fait) {
+      aFaire = aFaire.filter((x) => x.id !== id);
+      deleteDoc(doc(db, 'a_faire', id)).catch((e) => toast(e.message));
+    } else {
+      const entry = {
+        date: day, zone, seance, service: seance === 'service' ? service : null, tacheId: t.id, nom: t.nom,
+        fait: false, par: session.user.uid, parNom: session.user.prenom, at: Date.now(),
+      };
+      aFaire = [...aFaire.filter((x) => x.id !== id), { id, ...entry }];
+      setDoc(doc(db, 'a_faire', id), entry).catch((e) => toast(e.message));
+      toast('Ajouté : à faire absolument ce jour-là.');
+    }
+    draw();
+  }
+
+  // Quand une tâche est cochée (ou décochée), on met à jour ses « à faire absolument ».
+  function syncAFaire(t, coche) {
+    const sid = sessionId(day, seance, service, zone);
+    const same = (x) => x.tacheId === t.id && x.zone === zone && x.seance === seance && (seance !== 'service' || x.service === service);
+    aFaire.forEach((x) => {
+      if (coche && !x.fait && same(x) && x.date <= day) {
+        x.fait = true; x.faitSession = sid;
+        updateDoc(doc(db, 'a_faire', x.id), { fait: true, faitLe: day, faitSession: sid, faitPar: session.user.prenom }).catch((e) => console.error(e));
+      } else if (!coche && x.fait && x.faitSession === sid && x.tacheId === t.id) {
+        x.fait = false; x.faitSession = null;
+        updateDoc(doc(db, 'a_faire', x.id), { fait: false, faitLe: deleteField(), faitSession: deleteField(), faitPar: deleteField() }).catch((e) => console.error(e));
+      }
+    });
+  }
+
   function toggle(id) {
     const t = taches.find((x) => x.id === id);
     if (!t) return;
+    if (isFuture()) { togglePlan(t); return; }
     const items = (sess && sess.items) || {};
     const base = { date: day, zone, seance, service: seance === 'service' ? service : null, updatedAt: serverTimestamp() };
     let change;
@@ -129,12 +214,14 @@ export function renderNettoyage(view, { session }) {
       change = { ...base, items: { [id]: deleteField() } };
       const copy = { ...items }; delete copy[id];
       sess = { ...(sess || {}), items: copy };
+      syncAFaire(t, false);
     } else {
       const entry = {
         nom: t.nom, zone: t.zone || 'autre', par: session.user.uid, parNom: session.user.prenom, at: Date.now(), apresCoup: day !== today(),
       };
       change = { ...base, items: { [id]: entry } };
       sess = { ...(sess || {}), items: { ...items, [id]: entry } };
+      syncAFaire(t, true);
     }
     setDoc(ref(), change, { merge: true }).catch((e) => { console.error(e); toast('Erreur d’enregistrement. Réessayez.', 4000); });
     const tl = list();
@@ -174,6 +261,7 @@ export function renderNettoyage(view, { session }) {
     const b = e.target.closest('button');
     if (!b) return;
     if (b.dataset.task) toggle(b.dataset.task);
+    else if (b.dataset.goto) goTo(b.dataset.goto);
     else if (b.dataset.day && b.dataset.day !== day) changeDay(b.dataset.day);
     else if (b.dataset.zone && b.dataset.zone !== zone) {
       zone = b.dataset.zone;
@@ -186,11 +274,11 @@ export function renderNettoyage(view, { session }) {
   });
   function changeDay(d) {
     day = d;
-    if (d !== today()) service = 'soir'; else service = currentService();
+    if (d === today()) service = currentService(); else if (d < today()) service = 'soir';
     subscribe();
   }
   view.addEventListener('change', (e) => {
-    if (e.target.matches('[data-daypick]') && e.target.value && e.target.value <= today()) changeDay(e.target.value);
+    if (e.target.matches('[data-daypick]') && e.target.value) changeDay(e.target.value);
   });
   view.addEventListener('focusin', (e) => { if (e.target.id === 'note') editingNote = true; });
   view.addEventListener('focusout', (e) => {
@@ -211,10 +299,21 @@ export function renderNettoyage(view, { session }) {
     derniers = s.docs.map((d) => ({ date: d.data().date, zone: d.data().zone || 'bar', nb: Object.keys(d.data().items || {}).length }));
     if (!editingNote) draw();
   });
+  let menage = false;
+  const un3 = onSnapshot(collection(db, 'a_faire'), (s) => {
+    aFaire = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+    // Ménage : on efface les tâches faites depuis plus de 30 jours.
+    if (!menage) {
+      menage = true;
+      const lim = addDaysKey(today(), -30);
+      aFaire.filter((x) => x.fait && (x.faitLe || x.date) < lim).forEach((x) => deleteDoc(doc(db, 'a_faire', x.id)).catch(() => {}));
+    }
+    if (!editingNote) draw();
+  });
   subscribe();
 
   return () => {
-    un1(); un2(); if (unSess) unSess();
+    un1(); un2(); un3(); if (unSess) unSess();
     window.removeEventListener('online', onNet);
     window.removeEventListener('offline', onNet);
   };
